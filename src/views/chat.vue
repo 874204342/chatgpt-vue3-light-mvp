@@ -1,5 +1,6 @@
 <script lang="tsx" setup>
-import { defaultMockModelName, modelMappingList, triggerModelTermination } from '@/components/MarkdownPreview/models'
+import { renderMarkdownText, renderMermaidProcess } from '@/components/MarkdownPreview/plugins/markdown'
+import { defaultMockModelName, modelMappingList, triggerModelTermination, type ChatMessage } from '@/components/MarkdownPreview/models'
 import { type InputInst } from 'naive-ui'
 import type { SelectBaseOption } from 'naive-ui/es/select/src/interface'
 import { isGithubDeployed } from '@/config'
@@ -41,6 +42,8 @@ const stylizingLoading = ref(false)
  */
 const inputTextString = ref('')
 const refInputTextString = ref<InputInst | null>()
+const conversationList = ref<ChatMessage[]>([])
+const refConversationContent = ref<HTMLElement | null>()
 
 /**
  * 输出字符串 Reader 流（风格化的）
@@ -49,12 +52,28 @@ const outputTextReader = ref<ReadableStreamDefaultReader | null>()
 
 const refReaderMarkdownPreview = ref<any>()
 
+const scrollConversationToBottom = async () => {
+  await nextTick()
+  if (!refConversationContent.value) return
+
+  refConversationContent.value.scrollTop = refConversationContent.value.scrollHeight
+}
+
+const renderConversationMermaid = async () => {
+  await nextTick()
+  renderMermaidProcess(scrollConversationToBottom)
+}
+
+const renderMessageContent = (content: string) => {
+  return renderMarkdownText(content)
+}
+
 const onFailedReader = () => {
   outputTextReader.value = null
-  stylizingLoading.value = false
   if (refReaderMarkdownPreview.value) {
     refReaderMarkdownPreview.value.initializeEnd()
   }
+  stylizingLoading.value = false
   window.$ModalMessage.error('转换失败，请重试')
   setTimeout(() => {
     if (refInputTextString.value) {
@@ -63,8 +82,20 @@ const onFailedReader = () => {
   })
   triggerModelTermination()
 }
-const onCompletedReader = () => {
+
+const onCompletedReader = (answerText = '') => {
+  outputTextReader.value = null
+  if (answerText.trim()) {
+    conversationList.value.push({
+      role: 'assistant',
+      content: answerText
+    })
+  }
   stylizingLoading.value = false
+  nextTick(() => {
+    scrollConversationToBottom()
+    renderConversationMermaid()
+  })
   setTimeout(() => {
     if (refInputTextString.value) {
       refInputTextString.value.focus()
@@ -76,8 +107,9 @@ const onCompletedReader = () => {
 const handleCreateStylized = async () => {
   // 若正在加载，则点击后恢复初始状态
   if (stylizingLoading.value) {
+    const partialAnswerText = refReaderMarkdownPreview.value?.getDisplayText?.() || ''
     refReaderMarkdownPreview.value.abortReader()
-    onCompletedReader()
+    onCompletedReader(partialAnswerText)
     return
   }
 
@@ -88,14 +120,23 @@ const handleCreateStylized = async () => {
     return
   }
 
-  refReaderMarkdownPreview.value.resetStatus()
-  refReaderMarkdownPreview.value.initializeStart()
-
-  stylizingLoading.value = true
   const textContent = inputTextString.value
   inputTextString.value = ''
+  conversationList.value.push({
+    role: 'user',
+    content: textContent
+  })
+
+  stylizingLoading.value = true
+  await nextTick()
+  refReaderMarkdownPreview.value?.resetStatus()
+  refReaderMarkdownPreview.value?.initializeStart()
+  scrollConversationToBottom()
+
   const { error, reader } = await businessStore.createAssistantWriterStylized({
-    text: textContent
+    messages: conversationList.value.map(message => ({
+      ...message
+    }))
   })
 
   if (error) {
@@ -125,7 +166,8 @@ const handleInputEnter = (event: KeyboardEvent) => {
 
 const handleResetState = () => {
   inputTextString.value = ''
-
+  conversationList.value = []
+  outputTextReader.value = null
   stylizingLoading.value = false
   nextTick(() => {
     refInputTextString.value?.focus()
@@ -256,6 +298,7 @@ const promptTextList = ref([
         pb-20
       >
         <MarkdownPreview
+          v-if="!conversationList.length && !stylizingLoading"
           ref="refReaderMarkdownPreview"
           v-model:reader="outputTextReader"
           :model="businessStore.currentModelItem?.modelName"
@@ -263,6 +306,59 @@ const promptTextList = ref([
           @failed="onFailedReader"
           @completed="onCompletedReader"
         />
+        <div
+          v-else
+          ref="refConversationContent"
+          flex="1 ~ col"
+          min-h-0
+          class="overflow-y-auto px-12"
+        >
+          <div
+            flex="~ col"
+            gap-16
+            class="py-10"
+          >
+            <div
+              v-for="(messageItem, idx) in conversationList"
+              :key="`${ messageItem.role }-${ idx }`"
+              class="w-full flex"
+              :class="[
+                messageItem.role === 'user' ? 'justify-end' : 'justify-start'
+              ]"
+            >
+              <div
+                v-if="messageItem.role === 'user'"
+                class="max-w-[85%] whitespace-break-spaces rounded-16 bg-primary/8 px-16 py-12 text-15 line-height-24"
+              >
+                {{ messageItem.content }}
+              </div>
+              <div
+                v-else
+                class="w-full rounded-16 bg-#fff/75 px-16 py-12"
+              >
+                <div
+                  class="markdown-wrapper"
+                  v-html="renderMessageContent(messageItem.content)"
+                ></div>
+              </div>
+            </div>
+
+            <div
+              v-if="stylizingLoading"
+              class="w-full rounded-16 bg-#fff/75 px-16 py-12"
+            >
+              <MarkdownPreview
+                ref="refReaderMarkdownPreview"
+                v-model:reader="outputTextReader"
+                :model="businessStore.currentModelItem?.modelName"
+                :show-empty-placeholder="false"
+                :transform-stream-fn="businessStore.currentModelItem?.transformStreamValue"
+                @failed="onFailedReader"
+                @completed="onCompletedReader"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div

@@ -13,12 +13,15 @@ interface Props {
   // 针对不同模型的流式片段转换函数。
   // 各模型返回格式不同，这里由上层传入统一的转换器做适配。
   transformStreamFn: TransformFunction | null | undefined
+  // 在消息列表中作为“当前回答”渲染时，不再展示默认空状态占位。
+  showEmptyPlaceholder?: boolean
 }
 
 const props = withDefaults(
   defineProps<Props>(),
   {
-    reader: null
+    reader: null,
+    showEmptyPlaceholder: true
   }
 )
 
@@ -298,7 +301,7 @@ const showText = () => {
         })
         // 通知父组件本轮流式输出已结束，并清空对 reader 的引用。
         emit('update:reader', null)
-        emit('completed')
+        emit('completed', displayText.value)
         readerLoading.value = false
         isCompleted.value = true
         nextTick(() => {
@@ -333,6 +336,7 @@ onUnmounted(() => {
 defineExpose({
   // 暴露给父组件，用于发送前重置、中止当前生成、控制初始化态。
   abortReader,
+  getDisplayText: () => displayText.value,
   resetStatus,
   initializeStart,
   initializeEnd
@@ -433,7 +437,7 @@ const emptyPlaceholder = computed(() => {
         />
         <template v-else>
           <n-empty
-            v-if="!displayText"
+            v-if="!displayText && showEmptyPlaceholder"
             size="large"
             class="font-bold"
           >

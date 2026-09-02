@@ -1,5 +1,6 @@
 import { mockEventStreamText } from '@/data'
 import { sleep } from '@/utils/request'
+import { glassAssistantSystemPrompt } from './prompts'
 
 /**
  * 转义处理响应值为 data: 的 json 字符串
@@ -185,9 +186,32 @@ type DoneResult = {
   done: boolean
 }
 
+export type ChatMessage = {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
 export type CrossTransformFunction = (readValue: Uint8Array | string, textDecoder: TextDecoder) => DoneResult
 
 export type TransformFunction = (readValue: Uint8Array | string, textDecoder: TextDecoder) => ContentResult
+
+const normalizeConversationMessages = (messages: ChatMessage[]) => {
+  return messages.filter(item => item.content?.trim())
+}
+
+const prependSystemMessage = (messages: ChatMessage[], systemPrompt?: string) => {
+  const normalizedMessages = normalizeConversationMessages(messages)
+  if (!systemPrompt) {
+    return normalizedMessages
+  }
+  return [
+    {
+      role: 'system',
+      content: systemPrompt
+    },
+    ...normalizedMessages
+  ]
+}
 
 interface TypesModelLLM {
   // 模型昵称，仅用于前端选择器展示。
@@ -197,8 +221,8 @@ interface TypesModelLLM {
   // 流式结果转换器，用来抹平不同模型厂商的返回结构差异。
   transformStreamValue: TransformFunction
   // 发起大模型请求的方法。
-  // 当前项目仍按单轮模式调用，因此这里只接收当前输入文本。
-  chatFetch: (text: string) => Promise<Response>
+  // 多轮会话时，这里直接接收完整对话消息列表。
+  chatFetch: (messages: ChatMessage[]) => Promise<Response>
 }
 
 
@@ -238,7 +262,7 @@ export const modelMappingList: TypesModelLLM[] = [
       }
     },
     // Mock Event Stream 用于模拟读取大模型接口 Mock 数据
-    async chatFetch(text): Promise<Response> {
+    async chatFetch(messages): Promise<Response> {
       // 模拟 res.body 的数据
       // 将 mockData 转换为 ReadableStream
 
@@ -284,7 +308,7 @@ export const modelMappingList: TypesModelLLM[] = [
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
     // 当前直接请求兼容 OpenAI Chat Completions 的网关地址。
-    chatFetch(text) {
+    chatFetch(messages) {
       // const url = new URL(`${ location.origin }/deepseek/chat/completions`)
       const url = new URL(`https://newapi.jubocloud.com/v1/chat/completions`)
       const params = {
@@ -302,14 +326,9 @@ export const modelMappingList: TypesModelLLM[] = [
           // 普通模型 V4 pro。
           'model': 'deepseek-v4-pro',
           stream: true,
-          // 当前项目按单轮对话发送，只携带本轮 user 输入。
-          // 如果后续扩展多轮，这里应改为传入完整历史 messages。
-          messages: [
-            {
-              'role': 'user',
-              'content': text
-            }
-          ]
+          // 当前项目先以固定行业 skill 约束模型回答风格，
+          // 在此基础上把已完成的历史对话一并传给模型，形成多轮上下文。
+          messages: prependSystemMessage(messages, glassAssistantSystemPrompt)
         })
       })
       return fetch(req)
@@ -338,7 +357,7 @@ export const modelMappingList: TypesModelLLM[] = [
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
     // 这里通过 Vite 代理请求本地 /deepseek 前缀，规避开发环境跨域。
-    chatFetch(text) {
+    chatFetch(messages) {
       const url = new URL(`${ location.origin }/deepseek/chat/completions`)
       const params = {
       }
@@ -356,12 +375,7 @@ export const modelMappingList: TypesModelLLM[] = [
           // DeepSeek 推理模型。
           'model': 'deepseek-reasoner',
           stream: true,
-          messages: [
-            {
-              'role': 'user',
-              'content': text
-            }
-          ]
+          messages: prependSystemMessage(messages, glassAssistantSystemPrompt)
         })
       })
       return fetch(req)
@@ -384,7 +398,7 @@ export const modelMappingList: TypesModelLLM[] = [
     },
     // Event Stream 调用大模型接口 Ollama3 (Fetch 调用)。
     // 该模型走本地 Ollama 服务，不依赖远端 API Key。
-    chatFetch(text) {
+    chatFetch(messages) {
       const url = new URL(`http://localhost:11434/api/chat`)
       const params = {
       }
@@ -403,16 +417,7 @@ export const modelMappingList: TypesModelLLM[] = [
           'model': 'llama3',
           stream: true,
           // Ollama 支持附带 system 提示词，这里预置了一个简单人设。
-          messages: [
-            {
-              role: 'system',
-              content: '你的名字叫做小O, 全程使用中文回答我的问题。'
-            },
-            {
-              role: 'user',
-              content: text
-            }
-          ]
+          messages: prependSystemMessage(messages, '你的名字叫做小O, 全程使用中文回答我的问题。')
         })
       })
       return fetch(req)
@@ -435,7 +440,7 @@ export const modelMappingList: TypesModelLLM[] = [
     },
     // Event Stream 调用大模型接口 Spark 星火认知大模型 (Fetch 调用)。
     // 通过本地代理把 /spark 前缀请求转发到真实服务。
-    chatFetch(text) {
+    chatFetch(messages) {
       const url = new URL(`${ location.origin }/spark/v1/chat/completions`)
       const params = {
       }
@@ -452,16 +457,7 @@ export const modelMappingList: TypesModelLLM[] = [
         body: JSON.stringify({
           'model': '4.0Ultra',
           stream: true,
-          messages: [
-            {
-              role: 'system',
-              content: '你叫小明同学，喜欢探索新的前端知识，目前正在学习 AI 大模型。你可以解决任何前端方面的问题。'
-            },
-            {
-              'role': 'user',
-              'content': text
-            }
-          ]
+          messages: prependSystemMessage(messages, '你叫小明同学，喜欢探索新的前端知识，目前正在学习 AI 大模型。你可以解决任何前端方面的问题。')
         })
       })
       return fetch(req)
@@ -483,7 +479,7 @@ export const modelMappingList: TypesModelLLM[] = [
       }
     },
     // Event Stream 调用大模型接口 SiliconFlow 硅基流动大模型 (Fetch 调用)。
-    chatFetch(text) {
+    chatFetch(messages) {
       const url = new URL(`${ location.origin }/siliconflow/v1/chat/completions`)
       const params = {
       }
@@ -501,12 +497,7 @@ export const modelMappingList: TypesModelLLM[] = [
           // SiliconFlow 平台内的具体模型名，可按账号权限和需求切换。
           'model': 'THUDM/glm-4-9b-chat',
           stream: true,
-          messages: [
-            {
-              'role': 'user',
-              'content': text
-            }
-          ]
+          messages: normalizeConversationMessages(messages)
         })
       })
       return fetch(req)
@@ -528,7 +519,7 @@ export const modelMappingList: TypesModelLLM[] = [
       }
     },
     // Event Stream 调用大模型接口 Kimi Moonshot 月之暗面大模型 (Fetch 调用)。
-    chatFetch (text) {
+    chatFetch (messages) {
       const url = new URL(`${ location.origin }/moonshot/v1/chat/completions`)
       const params = {
       }
@@ -545,16 +536,7 @@ export const modelMappingList: TypesModelLLM[] = [
         body: JSON.stringify({
           'model': 'moonshot-v1-8k',
           stream: true,
-          messages: [
-            {
-              role: 'system',
-              content: '你是 Kimi，由 Moonshot AI 提供的人工智能助手，你更擅长中文和英文的对话。你会为用户提供安全，有帮助，准确的回答。同时，你会拒绝一切涉及恐怖主义，种族歧视，黄色暴力等问题的回答。Moonshot AI 为专有名词，不可翻译成其他语言。'
-            },
-            {
-              role: 'user',
-              content: text
-            }
-          ]
+          messages: prependSystemMessage(messages, '你是 Kimi，由 Moonshot AI 提供的人工智能助手，你更擅长中文和英文的对话。你会为用户提供安全，有帮助，准确的回答。同时，你会拒绝一切涉及恐怖主义，种族歧视，黄色暴力等问题的回答。Moonshot AI 为专有名词，不可翻译成其他语言。')
         })
       })
       return fetch(req)

@@ -6,10 +6,14 @@ import * as GlobalAPI from '@/api'
 
 import * as TransformUtils from '@/components/MarkdownPreview/transform'
 
-import { defaultModelName, modelMappingList } from '@/components/MarkdownPreview/models'
+import { defaultModelName, modelMappingList, type ChatMessage } from '@/components/MarkdownPreview/models'
 
 export interface BusinessState {
   systemModelName: string
+}
+
+type CreateAssistantWriterStylizedData = {
+  messages: ChatMessage[]
 }
 
 export const useBusinessStore = defineStore('business-store', {
@@ -27,18 +31,19 @@ export const useBusinessStore = defineStore('business-store', {
     /**
      * Event Stream 调用大模型接口
      */
-    async createAssistantWriterStylized(data): Promise<{error: number
+    async createAssistantWriterStylized(data: CreateAssistantWriterStylizedData): Promise<{error: number
       reader: ReadableStreamDefaultReader<string> | null}> {
 
       // 调用当前模型的接口
       return new Promise((resolve) => {
         if (!this.currentModelItem?.chatFetch) {
-          return {
+          resolve({
             error: 1,
             reader: null
-          }
+          })
+          return
         }
-        this.currentModelItem.chatFetch(data.text)
+        this.currentModelItem.chatFetch(data.messages)
           .then((res) => {
             if (res.body) {
               const reader = res.body
