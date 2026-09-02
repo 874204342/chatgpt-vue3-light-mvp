@@ -4,8 +4,6 @@ import { type InputInst } from 'naive-ui'
 import type { SelectBaseOption } from 'naive-ui/es/select/src/interface'
 import { isGithubDeployed } from '@/config'
 
-import { UAParser } from 'ua-parser-js'
-
 const route = useRoute()
 const router = useRouter()
 const businessStore = useBusinessStore()
@@ -110,63 +108,19 @@ const handleCreateStylized = async () => {
   }
 }
 
-
-const keys = useMagicKeys()
-const enterCommand = keys['Meta+Enter']
-const enterCtrl = keys['Ctrl+Enter']
-
-const activeElement = useActiveElement()
-const notUsingInput = computed(() => activeElement.value?.tagName !== 'TEXTAREA')
-
-const parser = new UAParser()
-const isMacos = computed(() => {
-  const os = parser.getOS()
-  if (!os) return
-
-  const osName = os.name ?? ''
-  return osName
-    .toLocaleLowerCase()
-    .includes?.('macos')
-})
-
 const placeholder = computed(() => {
   if (stylizingLoading.value) {
     return `输入任意问题...`
   }
-  return `输入任意问题, 按 ${ isMacos.value ? 'Command' : 'Ctrl' } + Enter 键快捷开始...`
+  return '输入任意问题，按 Enter 发送，Shift/Ctrl + Enter 换行...'
 })
 
-watch(
-  () => enterCommand.value,
-  () => {
-    if (!isMacos.value || notUsingInput.value) return
+const handleInputEnter = (event: KeyboardEvent) => {
+  if (event.shiftKey || event.ctrlKey) return
 
-    if (stylizingLoading.value) return
-
-    if (!enterCommand.value) {
-      handleCreateStylized()
-    }
-  },
-  {
-    deep: true
-  }
-)
-
-watch(
-  () => enterCtrl.value,
-  () => {
-    if (isMacos.value || notUsingInput.value) return
-
-    if (stylizingLoading.value) return
-
-    if (!enterCtrl.value) {
-      handleCreateStylized()
-    }
-  },
-  {
-    deep: true
-  }
-)
+  event.preventDefault()
+  handleCreateStylized()
+}
 
 
 const handleResetState = () => {
@@ -343,6 +297,7 @@ const promptTextList = ref([
             autofocus
             h-full
             class="textarea-resize-none text-15"
+            @keydown.enter="handleInputEnter"
             :style="{
               '--n-border-radius': '20px',
               '--n-padding-left': '20px',

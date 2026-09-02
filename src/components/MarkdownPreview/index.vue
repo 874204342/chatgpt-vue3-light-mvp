@@ -5,8 +5,13 @@ import type { CrossTransformFunction, TransformFunction } from './models'
 import { defaultMockModelName } from './models'
 
 interface Props {
+  // 上层传入的流式 reader。
+  // 该 reader 会持续吐出模型返回的分段文本，组件内部负责消费它并做渐进渲染。
   reader?: ReadableStreamDefaultReader<Uint8Array> | null | undefined
+  // 当前选中的模型标识，只用于空状态文案判断等 UI 展示逻辑。
   model: string | null| undefined
+  // 针对不同模型的流式片段转换函数。
+  // 各模型返回格式不同，这里由上层传入统一的转换器做适配。
   transformStreamFn: TransformFunction | null | undefined
 }
 
@@ -19,12 +24,20 @@ const props = withDefaults(
 
 
 // 定义响应式变量
+// 已经显示到页面上的文本内容。
+// 该值会被实时转成 Markdown HTML，用户当前看到的就是这一份文本。
 const displayText = ref('')
+// 从流里读取到、但还没真正渲染到页面上的缓冲区。
+// 打字机效果的核心就是先写入这里，再按帧搬运到 displayText。
 const textBuffer = ref('')
+// 当前 reader 是否仍处于工作中。
+// 它主要用于控制底部 loading 图标，以及生成完毕时机判断。
 const readerLoading = ref(false)
 
+// 是否已主动终止当前读取流程。
 const isAbort = ref(false)
 
+// 当前一次回答是否已经完整结束。
 const isCompleted = ref(false)
 
 const emit = defineEmits([
@@ -36,6 +49,7 @@ const emit = defineEmits([
 
 const refWrapperContent = ref<HTMLElement>()
 
+// 记录 requestAnimationFrame 的句柄，避免重复开启多个打字动画循环。
 let typingAnimationFrame: number | null = null
 
 const renderedMarkdown = computed(() => {
@@ -71,6 +85,8 @@ const WaitTextRender = defineComponent({
 })
 
 const abortReader = () => {
+  // 主动中断当前流式读取。
+  // 这里除了 cancel reader，还要同步重置内部状态，避免旧的动画继续消费旧缓冲区。
   if (props.reader) {
     props.reader.cancel()
   }
@@ -83,6 +99,8 @@ const abortReader = () => {
 }
 
 const resetStatus = () => {
+  // 将组件恢复到“尚未开始生成”的初始状态。
+  // 每次新提问前，都会先走这一轮清理，防止上一次输出残留。
   isAbort.value = false
   isCompleted.value = false
   readIsOver.value = false
@@ -117,7 +135,9 @@ const showCopy = computed(() => {
 })
 
 const renderedContent = computed(() => {
-  // 在 renderedMarkdown 末尾插入光标标记
+  // 这里当前直接返回渲染结果。
+  // 如果后续要做“闪烁光标”之类的扩展，可以在这里统一拼接额外标记。
+  console.log('renderedMarkdown.value', renderedMarkdown.value)
   return `${ renderedMarkdown.value }`
 })
 
@@ -125,18 +145,24 @@ const renderedContent = computed(() => {
 const initialized = ref(false)
 
 const initializeStart = () => {
+  // 通知外层“请求已发出，但首段内容可能还没回来”。
+  // 这个状态和 readerLoading 不完全相同，主要用于首屏 loading 过渡。
   initialized.value = true
 }
 
 const initializeEnd = () => {
+  // 一旦真正拿到内容、失败或结束，都应当退出初始化态。
   initialized.value = false
 }
 
 /**
- * reader 读取是否结束
+ * 标记 reader 是否已经读取结束。
+ * 注意：reader 结束不代表页面已经渲染完，textBuffer 里可能还有待消费内容。
  */
 const readIsOver = ref(false)
 const readTextStream = async () => {
+  // 持续从流式 reader 中读取服务端返回的数据。
+  // 这里负责“读流并写入缓冲区”，不直接控制页面逐字展示节奏。
   if (!props.reader) return
 
 
@@ -167,6 +193,7 @@ const readTextStream = async () => {
         break
       }
 
+      // 不同模型的分段协议不一样，这里统一转换成 content / done / isWaitQueuing 三类结果。
       const stream = transformer(value, textDecoder)
       if (stream.done) {
         readIsOver.value = true
@@ -178,10 +205,12 @@ const readTextStream = async () => {
       }
       if (stream.content) {
         waitingForQueue.value = false
+        // 接口一旦返回真实内容，先进入缓冲区，后续再由 showText 按帧吐到页面。
         textBuffer.value += stream.content
       }
 
       if (typingAnimationFrame === null) {
+        // 只有当前没有动画循环时才启动，避免重复开启多个 requestAnimationFrame。
         showText()
       }
     } catch (error) {
@@ -196,6 +225,7 @@ const readTextStream = async () => {
 }
 
 const scrollToBottom = async () => {
+  // DOM 更新后再滚动，避免读取到旧的 scrollHeight。
   await nextTick()
   if (!refWrapperContent.value) return
 
@@ -204,6 +234,8 @@ const scrollToBottom = async () => {
 const scrollToBottomByThreshold = async () => {
   if (!refWrapperContent.value) return
 
+  // 仅当用户当前接近底部时，才自动跟随新内容滚动。
+  // 这样可以减少强制回到底部带来的阅读打断。
   const threshold = 100
   const distanceToBottom = refWrapperContent.value.scrollHeight - refWrapperContent.value.scrollTop - refWrapperContent.value.clientHeight
   if (distanceToBottom <= threshold) {
@@ -217,10 +249,13 @@ const scrollToBottomIfAtBottom = async () => {
 }
 
 /**
- * 读取 buffer 内容，逐字追加到 displayText
+ * 从缓冲区读取内容，按固定步长逐步追加到 displayText。
+ * 这里每帧最多追加 10 个字符，用来制造“打字机”渐进输出的视觉效果。
  */
 const runReadBuffer = (readCallback = () => {}, endCallback = () => {}) => {
   if (textBuffer.value.length > 0) {
+    // 这里取的是分块追加，而不是一次性全量追加。
+    // 如果直接把整个 textBuffer 写入 displayText，页面就会瞬间整段出现。
     const nextChunk = textBuffer.value.substring(0, 10)
     displayText.value += nextChunk
     textBuffer.value = textBuffer.value.substring(10)
@@ -231,6 +266,8 @@ const runReadBuffer = (readCallback = () => {}, endCallback = () => {}) => {
 }
 
 const showText = () => {
+  // showText 由 requestAnimationFrame 驱动，是打字机效果的核心调度器。
+  // 只要 reader 还没结束，或者缓冲区里还有剩余文本，它就会持续调度下一帧。
   if (isAbort.value && typingAnimationFrame) {
     cancelAnimationFrame(typingAnimationFrame)
     typingAnimationFrame = null
@@ -242,6 +279,7 @@ const showText = () => {
   // 若 reader 还没结束，则保持打字行为
   if (!readIsOver.value) {
     runReadBuffer()
+    // Mermaid 这类富文本可能会随着内容追加而生成新节点，因此每帧都补一次渲染。
     renderMermaidProcess(scrollToBottom)
     typingAnimationFrame = requestAnimationFrame(showText)
   } else {
@@ -258,6 +296,7 @@ const showText = () => {
           title: '生成完毕',
           duration: 1500
         })
+        // 通知父组件本轮流式输出已结束，并清空对 reader 的引用。
         emit('update:reader', null)
         emit('completed')
         readerLoading.value = false
@@ -276,6 +315,7 @@ watch(
   () => props.reader,
   () => {
     if (props.reader) {
+      // 一旦上层注入了新的 reader，就启动一轮新的流读取。
       readTextStream()
     }
   },
@@ -291,6 +331,7 @@ onUnmounted(() => {
 })
 
 defineExpose({
+  // 暴露给父组件，用于发送前重置、中止当前生成、控制初始化态。
   abortReader,
   resetStatus,
   initializeStart,
@@ -298,6 +339,8 @@ defineExpose({
 })
 
 const showLoading = computed(() => {
+  // 仅在“请求已发出，但正文还没开始显示”的阶段展示中间 loading。
+  // 一旦 displayText 已有内容，就切换为正文 + 尾部小 loading 的形式。
   if (initialized.value) {
     return true
   }
@@ -318,6 +361,7 @@ const showLoading = computed(() => {
 
 const refClipBoard = ref()
 const handlePassClip = () => {
+  // 复制的是当前已经展示完成的文本内容，而不是原始流片段。
   if (refClipBoard.value) {
     refClipBoard.value.copyText()
   }

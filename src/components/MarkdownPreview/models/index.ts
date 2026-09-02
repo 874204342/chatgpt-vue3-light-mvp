@@ -6,6 +6,8 @@ import { sleep } from '@/utils/request'
  * 如: 科大讯飞星火、Kimi Moonshot 等大模型的 response
  */
 export const createParser = () => {
+  // 避免服务端持续返回 keep-alive 时，页面重复展示“排队中”提示。
+  // 这里用闭包变量记录本轮请求是否已经提示过一次。
   let keepAliveShown = false
 
   const resetKeepAliveParser = () => {
@@ -13,6 +15,11 @@ export const createParser = () => {
   }
 
   const parseJsonLikeData = (content) => {
+    // 统一兼容几类常见流式数据：
+    // 1. SSE 格式：data: {...}
+    // 2. 终止信号：[DONE]
+    // 3. 直接返回的 JSON 字符串
+    // 4. keep-alive 心跳文本
 
     // 若是终止信号，则直接结束
     if (content === '[DONE]') {
@@ -24,6 +31,7 @@ export const createParser = () => {
     }
 
     if (content.startsWith('data: ')) {
+      // 进入真正的数据片段后，说明当前已不再处于纯排队心跳阶段。
       keepAliveShown = false
       const dataString = content.substring(6).trim()
       if (dataString === '[DONE]') {
@@ -77,6 +85,8 @@ export const createParser = () => {
 }
 
 export const createStreamThinkTransformer = () => {
+  // 标记当前是否正在处理“思考过程”流。
+  // 用于在 reasoning_content 与正式回答之间插入 <think> 包裹。
   let isThinking = false
 
   const resetThinkTransformer = () => {
@@ -84,6 +94,7 @@ export const createStreamThinkTransformer = () => {
   }
 
   const transformStreamThinkData = (content) => {
+    // 先把原始响应片段统一解析成结构化数据，再做推理模型专属转换。
     const stream = parseJsonLikeData(content)
 
     if (stream && stream.done) {
@@ -107,7 +118,9 @@ export const createStreamThinkTransformer = () => {
     }
 
     const delta = stream.choices[0].delta
+    // 正式回答文本。
     const contentText = delta.content || ''
+    // 推理模型的思考内容。
     const reasoningText = delta.reasoning_content || ''
 
     let transformedContent = ''
@@ -134,6 +147,7 @@ export const createStreamThinkTransformer = () => {
       transformedContent += contentText
     }
 
+    // 返回统一的增量文本结果，供上层持续追加到打字缓冲区。
     return {
       content: transformedContent
     }
@@ -150,7 +164,8 @@ const { resetThinkTransformer, transformStreamThinkData } = createStreamThinkTra
 
 
 /**
- * 处理大模型调用暂停、异常或结束后触发的操作
+ * 处理大模型调用暂停、异常或结束后触发的操作。
+ * 主要用于清理解析器和推理转换器中的闭包状态，避免下一轮请求串状态。
  */
 export const triggerModelTermination = () => {
   resetKeepAliveParser()
@@ -175,13 +190,14 @@ export type CrossTransformFunction = (readValue: Uint8Array | string, textDecode
 export type TransformFunction = (readValue: Uint8Array | string, textDecoder: TextDecoder) => ContentResult
 
 interface TypesModelLLM {
-  // 模型昵称
+  // 模型昵称，仅用于前端选择器展示。
   label: string
-  // 模型标识符
+  // 模型标识符，作为项目内部切换模型的唯一 key。
   modelName: string
-  // Stream 结果转换器
+  // 流式结果转换器，用来抹平不同模型厂商的返回结构差异。
   transformStreamValue: TransformFunction
-  // 每个大模型调用的 API 请求
+  // 发起大模型请求的方法。
+  // 当前项目仍按单轮模式调用，因此这里只接收当前输入文本。
   chatFetch: (text: string) => Promise<Response>
 }
 
@@ -189,12 +205,15 @@ interface TypesModelLLM {
 /** ---------------- 大模型映射列表 & Response Transform 用于处理不同类型流的值转换器 ---------------- */
 
 /**
- * Mock 模拟模型的 name
+ * Mock 模拟模型的 name。
+ * 这个值也会影响页面空态文案和默认模型选择。
  */
-export const defaultMockModelName = 'standard'
+// export const defaultMockModelName = 'standard'
+export const defaultMockModelName = 'deepseek-v4-pro'
 
 /**
- * 项目默认使用模型，按需修改此字段即可
+ * 项目默认使用模型，按需修改此字段即可。
+ * 当前直接复用了 defaultMockModelName。
  */
 
 // export const defaultModelName = 'spark'
@@ -205,6 +224,7 @@ export const modelMappingList: TypesModelLLM[] = [
     label: '🧪 模拟数据模型',
     modelName: 'standard',
     transformStreamValue(readValue, textDecoder) {
+      // 模拟模型直接把流片段按原样输出，不需要 JSON 结构解析。
       let content = ''
       if (readValue instanceof Uint8Array) {
         content = textDecoder.decode(readValue, {
@@ -225,6 +245,7 @@ export const modelMappingList: TypesModelLLM[] = [
       const mockReadableStream = new ReadableStream({
         start(controller) {
           // 将每一行数据作为单独的 chunk
+          // 这样更接近真实 SSE 分段返回的效果。
           mockEventStreamText.split('\n').forEach(line => {
             controller.enqueue(new TextEncoder().encode(`${ line }\n`))
           })
@@ -241,9 +262,11 @@ export const modelMappingList: TypesModelLLM[] = [
     }
   },
   {
-    label: '🐋 DeepSeek-V3',
-    modelName: 'deepseek-v3',
+    label: '🐋 deepseek-v4-pro',
+    modelName: 'deepseek-v4-pro',
     transformStreamValue(readValue) {
+      // DeepSeek v4-pro 可能返回推理片段、正文片段和等待状态，
+      // 因此统一走推理模型转换器。
       const stream = transformStreamThinkData(readValue)
       if (stream.done) {
         return {
@@ -259,15 +282,16 @@ export const modelMappingList: TypesModelLLM[] = [
         content: stream.content
       }
     },
-    // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)
+    // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
+    // 当前直接请求兼容 OpenAI Chat Completions 的网关地址。
     chatFetch(text) {
-      const url = new URL(`${ location.origin }/deepseek/chat/completions`)
+      // const url = new URL(`${ location.origin }/deepseek/chat/completions`)
+      const url = new URL(`https://newapi.jubocloud.com/v1/chat/completions`)
       const params = {
       }
       Object.keys(params).forEach(key => {
         url.searchParams.append(key, params[key])
-      })
-
+      })      
       const req = new Request(url, {
         method: 'post',
         headers: {
@@ -275,9 +299,11 @@ export const modelMappingList: TypesModelLLM[] = [
           'Authorization': `Bearer ${ import.meta.env.VITE_DEEPSEEK_KEY }`
         },
         body: JSON.stringify({
-          // 普通模型 V3
-          'model': 'deepseek-chat',
+          // 普通模型 V4 pro。
+          'model': 'deepseek-v4-pro',
           stream: true,
+          // 当前项目按单轮对话发送，只携带本轮 user 输入。
+          // 如果后续扩展多轮，这里应改为传入完整历史 messages。
           messages: [
             {
               'role': 'user',
@@ -293,6 +319,8 @@ export const modelMappingList: TypesModelLLM[] = [
     label: '🐋 DeepSeek-R1 (推理模型)',
     modelName: 'deepseek-deep',
     transformStreamValue(readValue) {
+      // DeepSeek-R1 会拆分返回 reasoning_content 和 content，
+      // 因此也需要走推理模型转换器。
       const stream = transformStreamThinkData(readValue)
       if (stream.done) {
         return {
@@ -308,7 +336,8 @@ export const modelMappingList: TypesModelLLM[] = [
         content: stream.content
       }
     },
-    // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)
+    // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
+    // 这里通过 Vite 代理请求本地 /deepseek 前缀，规避开发环境跨域。
     chatFetch(text) {
       const url = new URL(`${ location.origin }/deepseek/chat/completions`)
       const params = {
@@ -324,7 +353,7 @@ export const modelMappingList: TypesModelLLM[] = [
           'Authorization': `Bearer ${ import.meta.env.VITE_DEEPSEEK_KEY }`
         },
         body: JSON.stringify({
-          // 推理模型
+          // DeepSeek 推理模型。
           'model': 'deepseek-reasoner',
           stream: true,
           messages: [
@@ -342,6 +371,7 @@ export const modelMappingList: TypesModelLLM[] = [
     label: '🦙 Ollama 3 大模型',
     modelName: 'ollama3',
     transformStreamValue(readValue) {
+      // Ollama 的正文位于 message.content 中，不是 OpenAI 风格的 delta.content。
       const stream = parseJsonLikeData(readValue)
       if (stream.done) {
         return {
@@ -352,7 +382,8 @@ export const modelMappingList: TypesModelLLM[] = [
         content: stream.message.content
       }
     },
-    // Event Stream 调用大模型接口 Ollama3 (Fetch 调用)
+    // Event Stream 调用大模型接口 Ollama3 (Fetch 调用)。
+    // 该模型走本地 Ollama 服务，不依赖远端 API Key。
     chatFetch(text) {
       const url = new URL(`http://localhost:11434/api/chat`)
       const params = {
@@ -368,9 +399,10 @@ export const modelMappingList: TypesModelLLM[] = [
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          // 'model': 'deepseek-r1', // 内置深度思考响应
+          // 这里可以按需切换成本地 Ollama 已下载的其他模型。
           'model': 'llama3',
           stream: true,
+          // Ollama 支持附带 system 提示词，这里预置了一个简单人设。
           messages: [
             {
               role: 'system',
@@ -390,6 +422,7 @@ export const modelMappingList: TypesModelLLM[] = [
     label: '⚡ Spark 星火大模型',
     modelName: 'spark',
     transformStreamValue(readValue) {
+      // Spark 的增量正文位于 choices[0].delta.content 中。
       const stream = parseJsonLikeData(readValue)
       if (stream.done) {
         return {
@@ -400,7 +433,8 @@ export const modelMappingList: TypesModelLLM[] = [
         content: stream.choices[0].delta.content || ''
       }
     },
-    // Event Stream 调用大模型接口 Spark 星火认知大模型 (Fetch 调用)
+    // Event Stream 调用大模型接口 Spark 星火认知大模型 (Fetch 调用)。
+    // 通过本地代理把 /spark 前缀请求转发到真实服务。
     chatFetch(text) {
       const url = new URL(`${ location.origin }/spark/v1/chat/completions`)
       const params = {
@@ -437,6 +471,7 @@ export const modelMappingList: TypesModelLLM[] = [
     label: '⚡ SiliconFlow 硅基流动大模型',
     modelName: 'siliconflow',
     transformStreamValue(readValue) {
+      // SiliconFlow 兼容 OpenAI 风格流式输出，因此直接解析 delta.content 即可。
       const stream = parseJsonLikeData(readValue)
       if (stream.done) {
         return {
@@ -447,7 +482,7 @@ export const modelMappingList: TypesModelLLM[] = [
         content: stream.choices[0].delta.content || ''
       }
     },
-    // Event Stream 调用大模型接口 SiliconFlow 硅基流动大模型 (Fetch 调用)
+    // Event Stream 调用大模型接口 SiliconFlow 硅基流动大模型 (Fetch 调用)。
     chatFetch(text) {
       const url = new URL(`${ location.origin }/siliconflow/v1/chat/completions`)
       const params = {
@@ -463,7 +498,7 @@ export const modelMappingList: TypesModelLLM[] = [
           'Authorization': `Bearer ${ import.meta.env.VITE_SILICONFLOW_KEY }`
         },
         body: JSON.stringify({
-          // 集成了大部分模型，可以免费使用
+          // SiliconFlow 平台内的具体模型名，可按账号权限和需求切换。
           'model': 'THUDM/glm-4-9b-chat',
           stream: true,
           messages: [
@@ -481,6 +516,7 @@ export const modelMappingList: TypesModelLLM[] = [
     label: '⚡ Kimi Moonshot 月之暗面大模型',
     modelName: 'moonshot',
     transformStreamValue(readValue) {
+      // Moonshot 也采用 choices[0].delta.content 作为增量正文。
       const stream = parseJsonLikeData(readValue)
       if (stream.done) {
         return {
@@ -491,7 +527,7 @@ export const modelMappingList: TypesModelLLM[] = [
         content: stream.choices[0].delta.content || ''
       }
     },
-    // Event Stream 调用大模型接口 Kimi Moonshot 月之暗面大模型 (Fetch 调用)
+    // Event Stream 调用大模型接口 Kimi Moonshot 月之暗面大模型 (Fetch 调用)。
     chatFetch (text) {
       const url = new URL(`${ location.origin }/moonshot/v1/chat/completions`)
       const params = {
