@@ -47,6 +47,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           ws: true,
           rewrite: (path) => path.replace(/^\/deepseek/, '')
+        },
+        '/local-ai': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+          ws: true,
+          rewrite: (path) => path.replace(/^\/local-ai/, '')
         }
       }
     },

@@ -307,25 +307,24 @@ export const modelMappingList: TypesModelLLM[] = [
       }
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
-    // 当前直接请求兼容 OpenAI Chat Completions 的网关地址。
+    // 当前先统一走本地后端，由后端代管密钥、MCP 和后续 tool calling。
     chatFetch(messages) {
-      // const url = new URL(`${ location.origin }/deepseek/chat/completions`)
-      const url = new URL(`https://newapi.jubocloud.com/v1/chat/completions`)
+      const url = new URL(`${ location.origin }/local-ai/api/chat`)
       const params = {
       }
       Object.keys(params).forEach(key => {
         url.searchParams.append(key, params[key])
-      })      
+      })
       const req = new Request(url, {
         method: 'post',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${ import.meta.env.VITE_DEEPSEEK_KEY }`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           // 普通模型 V4 pro。
-          'model': 'deepseek-v4-pro',
+          model: 'deepseek-v4-pro',
           stream: true,
+          enableMcp: true,
           // 当前项目先以固定行业 skill 约束模型回答风格，
           // 在此基础上把已完成的历史对话一并传给模型，形成多轮上下文。
           messages: prependSystemMessage(messages, glassAssistantSystemPrompt)
@@ -356,9 +355,9 @@ export const modelMappingList: TypesModelLLM[] = [
       }
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
-    // 这里通过 Vite 代理请求本地 /deepseek 前缀，规避开发环境跨域。
+    // 这里也统一走本地后端，后续如需给推理模型接 MCP，可在服务端继续扩展。
     chatFetch(messages) {
-      const url = new URL(`${ location.origin }/deepseek/chat/completions`)
+      const url = new URL(`${ location.origin }/local-ai/api/chat`)
       const params = {
       }
       Object.keys(params).forEach(key => {
@@ -368,13 +367,13 @@ export const modelMappingList: TypesModelLLM[] = [
       const req = new Request(url, {
         method: 'post',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${ import.meta.env.VITE_DEEPSEEK_KEY }`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           // DeepSeek 推理模型。
-          'model': 'deepseek-reasoner',
+          model: 'deepseek-reasoner',
           stream: true,
+          enableMcp: true,
           messages: prependSystemMessage(messages, glassAssistantSystemPrompt)
         })
       })

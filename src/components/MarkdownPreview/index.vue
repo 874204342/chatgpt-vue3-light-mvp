@@ -140,7 +140,6 @@ const showCopy = computed(() => {
 const renderedContent = computed(() => {
   // 这里当前直接返回渲染结果。
   // 如果后续要做“闪烁光标”之类的扩展，可以在这里统一拼接额外标记。
-  console.log('renderedMarkdown.value', renderedMarkdown.value)
   return `${ renderedMarkdown.value }`
 })
 

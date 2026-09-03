@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "apifox": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "apifox-mcp-server@latest",
+        "--project=your-project-id"
+      ],
+      "env": {
+        "APIFOX_ACCESS_TOKEN": "your-access-token"
+      }
+    }
+  }
+}
