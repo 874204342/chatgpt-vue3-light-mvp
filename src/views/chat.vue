@@ -1,6 +1,6 @@
 <script lang="tsx" setup>
 import { renderMarkdownText, renderMermaidProcess } from '@/components/MarkdownPreview/plugins/markdown'
-import { defaultMockModelName, modelMappingList, triggerModelTermination, type ChatMessage } from '@/components/MarkdownPreview/models'
+import { type ChatMessage, defaultMockModelName, modelMappingList, triggerModelTermination } from '@/components/MarkdownPreview/models'
 import { type InputInst } from 'naive-ui'
 import type { SelectBaseOption } from 'naive-ui/es/select/src/interface'
 import { isGithubDeployed } from '@/config'
@@ -74,7 +74,7 @@ const onFailedReader = () => {
     refReaderMarkdownPreview.value.initializeEnd()
   }
   stylizingLoading.value = false
-  window.$ModalMessage.error('转换失败，请重试')
+  // window.$ModalMessage.error('转换失败，请重试')
   setTimeout(() => {
     if (refInputTextString.value) {
       refInputTextString.value.focus()
@@ -393,7 +393,6 @@ const promptTextList = ref([
             autofocus
             h-full
             class="textarea-resize-none text-15"
-            @keydown.enter="handleInputEnter"
             :style="{
               '--n-border-radius': '20px',
               '--n-padding-left': '20px',
@@ -401,6 +400,7 @@ const promptTextList = ref([
               '--n-padding-vertical': '10px',
             }"
             :placeholder="placeholder"
+            @keydown.enter="handleInputEnter"
           />
           <n-float-button
             position="absolute"

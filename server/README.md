@@ -15,6 +15,7 @@
 - `src/routes/chat.ts`：聊天接口与 SSE 转发
 - `src/llm/deepseek.ts`：DeepSeek 上游请求封装
 - `src/mcp/client.ts`：MCP 接入预留位置
+- `src/tools/weather.ts`：内置天气查询（Open-Meteo，无需 Key）
 - `src/types/chat.ts`：聊天相关类型
 
 ## 启动方式
@@ -62,4 +63,16 @@ LOCAL_AI_SERVER_PORT=3001
 - 本地后端 -> DeepSeek
 - SSE 流式透传
 
-MCP 目前还是预留骨架，下一步可在 `src/mcp/client.ts` 中接入 Apifox MCP。
+当前版本已经加入 Apifox MCP 的读取与调用骨架，默认读取：
+
+- `server\mcp.config.json`
+
+当前版本还内置了天气查询能力：当用户问题命中天气类关键词时，服务端会调用 Open-Meteo 免费接口（无需 API Key）查询实时天气与未来三天预报，并以 system message 注入给模型。
+
+首次拉起前，请确认执行过：
+
+```powershell
+pnpm --dir server install
+```
+
+并且 `server\package.json` 中新增的 `@modelcontextprotocol/sdk` 已安装完成。

@@ -233,7 +233,8 @@ interface TypesModelLLM {
  * 这个值也会影响页面空态文案和默认模型选择。
  */
 // export const defaultMockModelName = 'standard'
-export const defaultMockModelName = 'deepseek-v4-pro'
+export const defaultMockModelName = 'GLM‑4‑Flash'
+
 
 /**
  * 项目默认使用模型，按需修改此字段即可。
@@ -283,6 +284,102 @@ export const modelMappingList: TypesModelLLM[] = [
           body: mockReadableStream
         } as Response)
       })
+    }
+  },
+  {
+    label: 'GLM‑4‑Flash',
+    modelName: 'GLM‑4‑Flash',
+    transformStreamValue(readValue) {
+      // GLM‑4‑Flash 可能返回推理片段、正文片段和等待状态，
+      // 因此统一走推理模型转换器。
+      const stream = transformStreamThinkData(readValue)
+      if (stream.done) {
+        return {
+          done: true
+        }
+      }
+      if (stream.isWaitQueuing) {
+        return {
+          isWaitQueuing: stream.isWaitQueuing
+        }
+      }
+      return {
+        content: stream.content
+      }
+    },
+    // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
+    // 当前先统一走本地后端，由后端代管密钥、MCP 和后续 tool calling。
+    chatFetch(messages) {
+      const url = new URL(`${ location.origin }/local-ai/api/chat`)
+      const params = {
+      }
+      Object.keys(params).forEach(key => {
+        url.searchParams.append(key, params[key])
+      })
+      const req = new Request(url, {
+        method: 'post',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          // 普通模型 V4 pro。
+          model: 'GLM‑4‑Flash',
+          stream: true,
+          enableMcp: true,
+          // 当前项目先以固定行业 skill 约束模型回答风格，
+          // 在此基础上把已完成的历史对话一并传给模型，形成多轮上下文。
+          messages: prependSystemMessage(messages, glassAssistantSystemPrompt)
+        })
+      })
+      return fetch(req)
+    }
+  },
+  {
+    label: 'new-api',
+    modelName: 'new-api',
+    transformStreamValue(readValue) {
+      // new-api 可能返回推理片段、正文片段和等待状态，
+      // 因此统一走推理模型转换器。
+      const stream = transformStreamThinkData(readValue)
+      if (stream.done) {
+        return {
+          done: true
+        }
+      }
+      if (stream.isWaitQueuing) {
+        return {
+          isWaitQueuing: stream.isWaitQueuing
+        }
+      }
+      return {
+        content: stream.content
+      }
+    },
+    // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
+    // 当前先统一走本地后端，由后端代管密钥、MCP 和后续 tool calling。
+    chatFetch(messages) {
+      const url = new URL(`${ location.origin }/local-ai/api/chat`)
+      const params = {
+      }
+      Object.keys(params).forEach(key => {
+        url.searchParams.append(key, params[key])
+      })
+      const req = new Request(url, {
+        method: 'post',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          // 普通模型 V4 pro。
+          model: 'new-api',
+          stream: true,
+          enableMcp: true,
+          // 当前项目先以固定行业 skill 约束模型回答风格，
+          // 在此基础上把已完成的历史对话一并传给模型，形成多轮上下文。
+          messages: prependSystemMessage(messages, glassAssistantSystemPrompt)
+        })
+      })
+      return fetch(req)
     }
   },
   {
@@ -542,3 +639,9 @@ export const modelMappingList: TypesModelLLM[] = [
     }
   }
 ]
+
+
+
+
+
+

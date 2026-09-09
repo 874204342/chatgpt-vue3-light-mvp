@@ -18,7 +18,39 @@
     --at-apply: 'b-none bg-transparent';
     --at-apply: 'c-#808080' cursor-pointer;
     --at-apply: transition-all-300 opacity-100 z-1;
-    
+    .markdown-code-wrapper {
+  background: #0f172a;
+  border: 1px solid #334155;
+}
+
+.markdown-code-header {
+  background: #1e293b;
+}
+
+.markdown-code-lang {
+  color: #cbd5e1;
+}
+
+.markdown-code-wrapper pre code {
+  background: transparent;
+  color: #e2e8f0;
+}.markdown-code-wrapper {
+  background: #0f172a;
+  border: 1px solid #334155;
+}
+
+.markdown-code-header {
+  background: #1e293b;
+}
+
+.markdown-code-lang {
+  color: #cbd5e1;
+}
+
+.markdown-code-wrapper pre code {
+  background: transparent;
+  color: #e2e8f0;
+}
     .markdown-copy-icon {
       --at-apply: text-16 pointer-events-none mr-4;
       --at-apply: 'i-ci:copy';

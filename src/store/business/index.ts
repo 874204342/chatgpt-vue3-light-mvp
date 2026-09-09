@@ -44,7 +44,21 @@ export const useBusinessStore = defineStore('business-store', {
           return
         }
         this.currentModelItem.chatFetch(data.messages)
-          .then((res) => {
+          .then(async (res) => {
+            // 后端返回非 2xx 时，读取错误信息并弹窗提示，不再当作正常流处理。
+            if (!res.ok) {
+              let errorMessage = `请求失败 (${ res.status })`
+              try {
+                const errorData = await res.json()
+                if (errorData?.error) errorMessage = errorData.error
+              } catch {}
+              window.$ModalMessage?.error(errorMessage)
+              resolve({
+                error: 1,
+                reader: null
+              })
+              return
+            }
             if (res.body) {
               const reader = res.body
                 // 第 1 步：把接口返回的二进制流解码成 UTF-8 文本流。
