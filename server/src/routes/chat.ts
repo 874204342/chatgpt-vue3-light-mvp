@@ -89,7 +89,6 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
         : resolved.messages
       upstreamResponse = isGlmModel
         ? await createGlmStream({
-          model,
           messages: messagesForModel,
           stream
         })

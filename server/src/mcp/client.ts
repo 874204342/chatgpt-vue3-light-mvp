@@ -2,7 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import type { ChatMessage } from '../types/chat.js'
+import { extractTextContent, type ChatMessage } from '../types/chat.js'
 
 // mcp.config.json 中单个 MCP 服务的配置结构。
 // 当前项目主要关注 apifox 服务，因此这里只抽象出启动子进程所需的最小字段。
@@ -41,9 +41,12 @@ const clientCache = new Map<string, CachedMcpClient>()
 // 当前规则偏向“接口/API 文档问答”场景，目的是在成本和收益之间做一个简单平衡。
 const shouldCallMcp = (messages: ChatMessage[]) => {
   const lastUserMessage = [...messages].reverse().find(message => message.role === 'user')
-  if (!lastUserMessage?.content) return false
+  if (!lastUserMessage) return false
 
-  return /apifox|接口|api|字段|请求参数|响应参数|接口文档|schema/i.test(lastUserMessage.content)
+  const text = extractTextContent(lastUserMessage.content)
+  if (!text) return false
+
+  return /apifox|接口|api|字段|请求参数|响应参数|接口文档|schema/i.test(text)
 }
 
 // 读取本地 mcp.config.json。
@@ -115,7 +118,8 @@ const getApifoxClient = async () => {
 
 // 取最后一条 user 消息，作为 MCP 查询的主要输入。
 const extractLastUserMessage = (messages: ChatMessage[]) => {
-  return [...messages].reverse().find(message => message.role === 'user')?.content || ''
+  const lastUser = [...messages].reverse().find(message => message.role === 'user')
+  return extractTextContent(lastUser?.content ?? '')
 }
 
 // 把 MCP 工具返回值尽量归一化成纯文本，方便注入到 system message。

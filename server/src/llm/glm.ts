@@ -1,25 +1,9 @@
-import type { ChatMessage } from '../types/chat.js'
+import { type ChatMessage, extractTextContent } from '../types/chat.js'
 import { serverConfig } from '../config.js'
 
 type StreamChatParams = {
-  model: string
   messages: ChatMessage[]
   stream?: boolean
-}
-
-// 前端模型别名到智谱官方模型 ID 的映射。
-// 前端选择器里的名称（如 GLM‑4‑Flash）不是智谱 API 认可的 modelCode，
-// 直接透传会报 1214 "modelCode：不存在"，因此在请求前统一转换。
-const GLM_MODEL_ALIASES: Record<string, string> = {
-  'glm-4-flash': 'glm-4'
-}
-
-// 把前端传来的模型名归一化成映射表的 key：
-// 前端字符串里的连字符是特殊字符（U+2011），需先替换成普通短横线，
-// 再转小写，保证别名匹配稳定。
-const resolveGlmModelCode = (model: string) => {
-  const normalized = model.replace(/\u2011/g, '-').toLowerCase()
-  return GLM_MODEL_ALIASES[normalized] || model
 }
 
 // 读取并打印 GLM 流式响应内容，便于在控制台观察出参。
@@ -43,14 +27,12 @@ const logGlmResponse = async (stream: ReadableStream<Uint8Array>) => {
   }
 }
 
-export const createGlmStream = async ({ model, messages, stream = true }: StreamChatParams) => {
+export const createGlmStream = async ({ messages, stream = true }: StreamChatParams) => {
   const requestBody = {
-    model: resolveGlmModelCode(model),
+    // 统一使用智谱视觉模型，无论是否携带图片。
+    model: 'glm-4v-flash',
     stream,
-    messages,
-    thinking: {
-      type: 'enabled' //disabled
-    }
+    messages
   }
 
   // 打印请求参数（不含 Authorization 鉴权信息）。
@@ -158,10 +140,13 @@ const formatWebSearchResults = (results: GlmWebSearchResult[]) => {
 // 根据最后一条用户消息联网搜索，并把结果作为 system message 注入。
 // search_intent=false 表示跳过意图识别、强制搜索，每次 GLM 请求都会执行搜索。
 export const resolveGlmWebSearchMessages = async (messages: ChatMessage[]) => {
-  const query = [...messages].reverse().find(message => message.role === 'user')?.content?.trim() || ''
+  const query = extractTextContent([...messages].reverse().find(message => message.role === 'user')?.content ?? '').trim()
   console.log('[GLM] 原始查询:', query)
   if (!query) {
-    return { messages, toolCalls: [] }
+    return {
+      messages,
+      toolCalls: []
+    }
   }
 
   try {
@@ -171,7 +156,10 @@ export const resolveGlmWebSearchMessages = async (messages: ChatMessage[]) => {
     const intents = result.search_intent || []
     const hasNoIntent = intents.length > 0 && intents.every(item => item.intent === 'SEARCH_NONE')
     if (hasNoIntent || !result.search_result?.length) {
-      return { messages, toolCalls: [] }
+      return {
+        messages,
+        toolCalls: []
+      }
     }
 
     const searchMessage: ChatMessage = {

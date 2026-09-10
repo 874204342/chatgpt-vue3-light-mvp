@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../types/chat.js'
+import { extractTextContent, type ChatMessage } from '../types/chat.js'
 
 // 天气增强结果，结构与 MCP 增强保持一致，便于路由层统一处理。
 type WeatherResolutionResult = {
@@ -69,9 +69,12 @@ const WEATHER_CODE_TEXT: Record<number, string> = {
 // 规则保持轻量，避免对普通问题误触发外部请求。
 const shouldQueryWeather = (messages: ChatMessage[]) => {
   const lastUserMessage = [...messages].reverse().find(message => message.role === 'user')
-  if (!lastUserMessage?.content) return false
+  if (!lastUserMessage) return false
 
-  return /天气|气温|温度|下雨|下雪|雨吗|雪吗|weather/i.test(lastUserMessage.content)
+  const text = extractTextContent(lastUserMessage.content)
+  if (!text) return false
+
+  return /天气|气温|温度|下雨|下雪|雨吗|雪吗|weather/i.test(text)
 }
 
 // 从用户问题中提取城市名。
@@ -155,7 +158,7 @@ export const resolveWeatherMessages = async (messages: ChatMessage[]): Promise<W
   }
 
   const lastUserMessage = [...messages].reverse().find(message => message.role === 'user')
-  const city = extractCity(lastUserMessage?.content || '')
+  const city = extractCity(extractTextContent(lastUserMessage?.content ?? ''))
 
   // 提取不到城市时不强行请求，交给模型自行回应。
   if (!city) {

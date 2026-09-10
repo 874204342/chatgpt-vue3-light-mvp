@@ -1,9 +1,10 @@
 <script lang="tsx" setup>
 import { renderMarkdownText, renderMermaidProcess } from '@/components/MarkdownPreview/plugins/markdown'
-import { type ChatMessage, defaultMockModelName, modelMappingList, triggerModelTermination } from '@/components/MarkdownPreview/models'
+import { type ChatContentPart, type ChatMessage, defaultMockModelName, modelMappingList, triggerModelTermination } from '@/components/MarkdownPreview/models'
 import { type InputInst } from 'naive-ui'
 import type { SelectBaseOption } from 'naive-ui/es/select/src/interface'
 import { isGithubDeployed } from '@/config'
+import { imageFileToDataUrl } from '@/utils/files-tool'
 
 const route = useRoute()
 const router = useRouter()
@@ -42,6 +43,13 @@ const stylizingLoading = ref(false)
  */
 const inputTextString = ref('')
 const refInputTextString = ref<InputInst | null>()
+type PendingAttachment = {
+  dataUrl: string
+  name: string
+}
+
+const pendingAttachments = ref<PendingAttachment[]>([])
+const refFileInput = ref<HTMLInputElement | null>()
 const conversationList = ref<ChatMessage[]>([])
 const refConversationContent = ref<HTMLElement | null>()
 
@@ -121,10 +129,26 @@ const handleCreateStylized = async () => {
   }
 
   const textContent = inputTextString.value
+  const textPart: ChatContentPart = {
+    type: 'text',
+    text: textContent
+  }
+  const imageParts: ChatContentPart[] = pendingAttachments.value.map(item => ({
+    type: 'image_url',
+    image_url: {
+      url: item.dataUrl
+    }
+  }))
+  pendingAttachments.value = []
   inputTextString.value = ''
+
+  const content: ChatMessage['content'] = imageParts.length
+    ? [textPart, ...imageParts]
+    : textContent
+
   conversationList.value.push({
     role: 'user',
-    content: textContent
+    content
   })
 
   stylizingLoading.value = true
@@ -163,10 +187,55 @@ const handleInputEnter = (event: KeyboardEvent) => {
   handleCreateStylized()
 }
 
+const getUserMessageText = (content: ChatMessage['content']) => {
+  if (typeof content === 'string') return content
+  return content
+    .filter((part): part is {
+      type: 'text'
+      text: string
+    } => part.type === 'text')
+    .map(part => part.text)
+    .join('\n')
+}
+
+const getUserMessageImages = (content: ChatMessage['content']) => {
+  if (typeof content === 'string') return []
+  return content
+    .filter((part): part is {
+      type: 'image_url'
+      image_url: {
+        url: string
+      }
+    } => part.type === 'image_url')
+    .map(part => part.image_url.url)
+}
+
+const handleUploadFile = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const files = input.files
+  if (!files) return
+
+  Array.from(files).forEach(async (file) => {
+    if (!file.type.startsWith('image/')) return
+    const dataUrl = await imageFileToDataUrl(file)
+    pendingAttachments.value.push({
+      dataUrl,
+      name: file.name
+    })
+  })
+
+  input.value = ''
+}
+
+const handleRemoveAttachment = (index: number) => {
+  pendingAttachments.value.splice(index, 1)
+}
+
 
 const handleResetState = () => {
   inputTextString.value = ''
   conversationList.value = []
+  pendingAttachments.value = []
   outputTextReader.value = null
   stylizingLoading.value = false
   nextTick(() => {
@@ -239,6 +308,14 @@ const promptTextList = ref([
   <LayoutCenterPanel
     :loading="loading"
   >
+    <input
+      ref="refFileInput"
+      type="file"
+      accept="image/*"
+      multiple
+      hidden
+      @change="handleUploadFile"
+    >
     <!-- 内容区域 -->
     <div
       flex="~ col"
@@ -328,9 +405,30 @@ const promptTextList = ref([
             >
               <div
                 v-if="messageItem.role === 'user'"
-                class="max-w-[85%] whitespace-break-spaces rounded-16 bg-primary/8 px-16 py-12 text-15 line-height-24"
+                class="max-w-[85%] rounded-16 bg-primary/8 px-16 py-12 text-15 line-height-24"
               >
-                {{ messageItem.content }}
+                <div
+                  v-if="getUserMessageText(messageItem.content)"
+                  class="whitespace-break-spaces"
+                >
+                  {{ getUserMessageText(messageItem.content) }}
+                </div>
+                <div
+                  v-if="getUserMessageImages(messageItem.content).length"
+                  flex="~ wrap"
+                  gap-8
+                  class="mt-8"
+                >
+                  <n-image
+                    v-for="(img, imgIdx) in getUserMessageImages(messageItem.content)"
+                    :key="imgIdx"
+                    :src="img"
+                    width="80"
+                    height="80"
+                    object-fit="cover"
+                    class="rounded-8"
+                  />
+                </div>
               </div>
               <div
                 v-else
@@ -381,6 +479,34 @@ const promptTextList = ref([
           </n-space>
         </div>
         <div
+          v-if="pendingAttachments.length"
+          w-full
+          flex="~ wrap items-center"
+          gap-8
+          class="px-1em pb-8"
+        >
+          <div
+            v-for="(attachment, attachmentIdx) in pendingAttachments"
+            :key="attachmentIdx"
+            relative
+          >
+            <n-image
+              :src="attachment.dataUrl"
+              width="48"
+              height="48"
+              object-fit="cover"
+              class="rounded-8"
+            />
+            <span
+              absolute
+              right="-6"
+              top="-6"
+              class="flex h-16 w-16 items-center justify-center rounded-full bg-#00000080 c-#fff text-12 cursor-pointer select-none"
+              @click="handleRemoveAttachment(attachmentIdx)"
+            >×</span>
+          </div>
+        </div>
+        <div
           relative
           flex="1"
           w-full
@@ -402,6 +528,17 @@ const promptTextList = ref([
             :placeholder="placeholder"
             @keydown.enter="handleInputEnter"
           />
+          <button
+            type="button"
+            class="absolute flex items-center justify-center rounded-full b-none cursor-pointer c-#303133/70 hover:bg-#0000000a disabled:cursor-not-allowed disabled:opacity-40"
+            style="left: 40px; bottom: 50%; transform: translateY(50%); width: 120px; height: 40px;"
+            :disabled="stylizingLoading"
+            title="上传图片"
+            @click="refFileInput?.click()"
+          >
+            上传图片
+            <!-- <span class="text-20 i-ic:sharp-image"></span> -->
+          </button>
           <n-float-button
             position="absolute"
             :right="40"

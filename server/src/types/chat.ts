@@ -1,3 +1,9 @@
+// 多模态内容片段。
+// 当前只支持文本与图片（base64 data URL），后续可扩展文件类片段。
+export type ChatContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } }
+
 // 单条聊天消息的数据结构。
 // 这个类型既用于前端传给服务端的历史消息，也用于服务端在调用模型前
 // 追加 system/tool 等上下文消息，因此这里的字段需要兼容多种消息来源。
@@ -8,15 +14,23 @@ export type ChatMessage = {
   // - assistant: 模型回复
   // - tool: 工具调用结果或工具返回内容
   role: 'system' | 'user' | 'assistant' | 'tool'
-  // 当前消息的文本内容。
-  // 现阶段项目里统一使用字符串，方便直接转发给上游模型接口。
-  content: string
+  // 当前消息的内容，兼容纯文本与多模态（文本 + 图片）两种结构。
+  content: string | ChatContentPart[]
   // 当消息和某次工具调用关联时，使用该字段标记对应的调用 ID。
   // 当前服务端没有主动构造该字段，但保留这个定义有利于后续接入标准工具调用协议。
   tool_call_id?: string
   // 可选的名称字段。
   // 常见用途包括标记 tool 名称，或为某些特殊 system/tool 消息附加来源信息。
   name?: string
+}
+
+// 从消息内容中提取纯文本，供关键词判断、搜索等逻辑复用。
+export const extractTextContent = (content: ChatMessage['content']): string => {
+  if (typeof content === 'string') return content
+  return content
+    .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+    .map(part => part.text)
+    .join('\n')
 }
 
 // 聊天接口请求体。

@@ -13,6 +13,12 @@ loadEnv({
   override: false
 })
 
+
+// newapi 上游配置：优先读取专用变量，回退兼容旧的 VITE_ 前缀变量。
+const newApiApiKey = process.env.NEW_API_KEY || ''
+const newApiBaseUrl = process.env.NEW_API_BASE_URL || 'https://newapi.jubocloud.com'
+
+
 // DeepSeek 上游配置：优先读取专用变量，回退兼容旧的 VITE_ 前缀变量。
 const deepseekApiKey = process.env.DEEPSEEK_API_KEY || process.env.VITE_DEEPSEEK_KEY || ''
 const deepseekBaseUrl = process.env.DEEPSEEK_BASE_URL || 'https://newapi.jubocloud.com'
@@ -30,6 +36,8 @@ if (!glmApiKey) {
 
 export const serverConfig = {
   workspaceRoot,
+  newApiApiKey,
+  newApiBaseUrl,
   deepseekApiKey,
   deepseekBaseUrl,
   glmApiKey,

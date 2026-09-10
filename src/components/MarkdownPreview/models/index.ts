@@ -186,17 +186,52 @@ type DoneResult = {
   done: boolean
 }
 
+export type ChatContentPart =
+  | {
+    type: 'text'
+    text: string
+  }
+  | {
+    type: 'image_url'
+    image_url: {
+      url: string
+    }
+  }
+
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant'
-  content: string
+  content: string | ChatContentPart[]
+}
+
+/**
+ * 从消息内容中提取纯文本，兼容纯文本与多模态（文本 + 图片）两种结构。
+ * 供消息过滤、空内容判断与提示词拼接复用。
+ */
+export const extractTextContent = (content: ChatMessage['content']): string => {
+  if (typeof content === 'string') return content
+  return content
+    .filter((part): part is {
+      type: 'text'
+      text: string
+    } => part.type === 'text')
+    .map(part => part.text)
+    .join('\n')
 }
 
 export type CrossTransformFunction = (readValue: Uint8Array | string, textDecoder: TextDecoder) => DoneResult
 
 export type TransformFunction = (readValue: Uint8Array | string, textDecoder: TextDecoder) => ContentResult
 
+const hasMessageContent = (content: ChatMessage['content']) => {
+  if (typeof content === 'string') return !!content.trim()
+  return content.some(part => {
+    if (part.type === 'text') return !!part.text.trim()
+    return !!part.image_url?.url
+  })
+}
+
 const normalizeConversationMessages = (messages: ChatMessage[]) => {
-  return messages.filter(item => item.content?.trim())
+  return messages.filter(item => hasMessageContent(item.content))
 }
 
 const prependSystemMessage = (messages: ChatMessage[], systemPrompt?: string) => {
@@ -218,6 +253,8 @@ interface TypesModelLLM {
   label: string
   // 模型标识符，作为项目内部切换模型的唯一 key。
   modelName: string
+  // 是否支持图片等多模态输入，用于控制前端是否展示上传入口。
+  supportsVision?: boolean
   // 流式结果转换器，用来抹平不同模型厂商的返回结构差异。
   transformStreamValue: TransformFunction
   // 发起大模型请求的方法。
@@ -287,8 +324,11 @@ export const modelMappingList: TypesModelLLM[] = [
     }
   },
   {
-    label: 'GLM‑4‑Flash',
-    modelName: 'GLM‑4‑Flash',
+    // label: 'GLM‑4‑Flash',
+    // modelName: 'GLM‑4‑Flash',
+    label: 'glm-4v-flash',
+    modelName: 'glm-4v-flash',
+    supportsVision: true,
     transformStreamValue(readValue) {
       // GLM‑4‑Flash 可能返回推理片段、正文片段和等待状态，
       // 因此统一走推理模型转换器。
@@ -323,7 +363,8 @@ export const modelMappingList: TypesModelLLM[] = [
         },
         body: JSON.stringify({
           // 普通模型 V4 pro。
-          model: 'GLM‑4‑Flash',
+          // model: 'GLM‑4‑Flash',
+          model: 'glm-4v-flash',
           stream: true,
           enableMcp: true,
           // 当前项目先以固定行业 skill 约束模型回答风格，
@@ -639,9 +680,4 @@ export const modelMappingList: TypesModelLLM[] = [
     }
   }
 ]
-
-
-
-
-
 

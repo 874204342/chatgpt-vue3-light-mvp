@@ -38,6 +38,42 @@ export const convertTextToFile = (textContent, fileName) => {
   return file
 }
 
+/**
+ * 将图片文件读取为 base64 data URL。
+ * 图片宽度超过 maxWidth 时按比例缩放并转成 jpeg，控制请求体体积。
+ */
+export const imageFileToDataUrl = (file: File, maxWidth = 1280, quality = 0.85): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      const img = new Image()
+      img.onload = () => {
+        // 图片本身较小则不重编码，保留原始格式与数据。
+        if (img.naturalWidth <= maxWidth) {
+          resolve(dataUrl)
+          return
+        }
+        const height = Math.round(img.naturalHeight * (maxWidth / img.naturalWidth))
+        const canvas = document.createElement('canvas')
+        canvas.width = maxWidth
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(dataUrl)
+          return
+        }
+        ctx.drawImage(img, 0, 0, maxWidth, height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = reject
+      img.src = dataUrl
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 
 /**
  * 将文本中的非法文件名字符替换为 '-'，并在末尾追加或替换为 .txt 后缀
