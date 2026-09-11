@@ -30,7 +30,7 @@ const logGlmResponse = async (stream: ReadableStream<Uint8Array>) => {
 export const createGlmStream = async ({ messages, stream = true }: StreamChatParams) => {
   const requestBody = {
     // 统一使用智谱视觉模型，无论是否携带图片。
-    model: 'glm-4v-flash',
+    model: 'glm-4-flash',
     stream,
     messages
   }
@@ -46,7 +46,7 @@ export const createGlmStream = async ({ messages, stream = true }: StreamChatPar
     },
     body: JSON.stringify(requestBody),
     // 90s 超时，避免上游无响应时请求永久挂起。
-    signal: AbortSignal.timeout(90000)
+    signal: AbortSignal.timeout(600000)
   })
 
   if (!upstreamResponse.ok) {
@@ -106,7 +106,7 @@ export const createGlmWebSearch = async (query: string) => {
       search_engine: 'search_std',
       search_intent: false
     }),
-    signal: AbortSignal.timeout(90000)
+    signal: AbortSignal.timeout(600000)
   })
 
   if (!response.ok) {

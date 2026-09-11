@@ -7,15 +7,15 @@ type StreamChatParams = {
   stream?: boolean
 }
 
-export const createDeepSeekStream = async ({ model, messages, stream = true }: StreamChatParams) => {
-  const upstreamResponse = await fetch(`${ serverConfig.deepseekBaseUrl }/v1/chat/completions`, {
+export const createNewApiStream = async ({ model, messages, stream = true }: StreamChatParams) => {
+  const upstreamResponse = await fetch(`${ serverConfig.newApiBaseUrl }/v1/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${ serverConfig.deepseekApiKey }`
+      'Authorization': `Bearer ${ serverConfig.newApiApiKey }`
     },
     body: JSON.stringify({
-      model,
+      model: serverConfig.newApiModel || model,
       stream,
       messages
     }),
@@ -31,11 +31,11 @@ export const createDeepSeekStream = async ({ model, messages, stream = true }: S
       const parsed = JSON.parse(errorText)
       if (parsed?.error?.message) detail = parsed.error.message
     } catch {}
-    throw new Error(`DeepSeek 上游请求失败 (${ upstreamResponse.status })：${ detail }`)
+    throw new Error(`new-api 上游请求失败 (${ upstreamResponse.status })：${ detail }`)
   }
 
   if (!upstreamResponse.body) {
-    throw new Error('DeepSeek upstream returned empty body.')
+    throw new Error('new-api upstream returned empty body.')
   }
 
   return upstreamResponse

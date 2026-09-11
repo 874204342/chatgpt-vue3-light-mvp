@@ -270,7 +270,7 @@ interface TypesModelLLM {
  * 这个值也会影响页面空态文案和默认模型选择。
  */
 // export const defaultMockModelName = 'standard'
-export const defaultMockModelName = 'GLM‑4‑Flash'
+export const defaultMockModelName = 'new-api'
 
 
 /**
@@ -326,8 +326,8 @@ export const modelMappingList: TypesModelLLM[] = [
   {
     // label: 'GLM‑4‑Flash',
     // modelName: 'GLM‑4‑Flash',
-    label: 'glm-4v-flash',
-    modelName: 'glm-4v-flash',
+    label: 'glm-4-flash',
+    modelName: 'glm-4-flash',
     supportsVision: true,
     transformStreamValue(readValue) {
       // GLM‑4‑Flash 可能返回推理片段、正文片段和等待状态，
@@ -364,7 +364,7 @@ export const modelMappingList: TypesModelLLM[] = [
         body: JSON.stringify({
           // 普通模型 V4 pro。
           // model: 'GLM‑4‑Flash',
-          model: 'glm-4v-flash',
+          model: 'glm-4-flash',
           stream: true,
           enableMcp: true,
           // 当前项目先以固定行业 skill 约束模型回答风格，
@@ -420,6 +420,12 @@ export const modelMappingList: TypesModelLLM[] = [
           messages: prependSystemMessage(messages, glassAssistantSystemPrompt)
         })
       })
+      // console.info('[new-api] 请求信息', {
+      //   url: req.url,
+      //   method: req.method,
+      //   headers: Object.fromEntries(req.headers.entries()),
+      //   body: JSON.parse(req.body as string)
+      // })
       return fetch(req)
     }
   },

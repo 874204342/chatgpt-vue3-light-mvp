@@ -103,7 +103,7 @@ export function preWrapperPlugin(md: MarkdownIt, options: Options) {
           <span class="markdown-code-lang">${ getBaseLanguageName(lang) }</span>
           <button class="markdown-code-copy">
             <div class="markdown-copy-icon"></div>
-            <span class="markdown-copy-text default">复制代码</span>
+            <span class="markdown-copy-text default">复制</span>
             <span class="markdown-copy-text done">已复制</span>
           </button>
         </div>

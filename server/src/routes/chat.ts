@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { createDeepSeekStream } from '../llm/deepseek.js'
+import { createNewApiStream } from '../llm/newapi.js'
 import { createGlmStream, resolveGlmWebSearchMessages } from '../llm/glm.js'
 import { resolveMcpMessages } from '../mcp/client.js'
 import { resolveWeatherMessages } from '../tools/weather.js'
@@ -68,7 +69,6 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
         error: 'model and messages are required.'
       }
     }
-
     // 先判断是否命中天气类问题：命中时调用 Open-Meteo 查询实时天气，
     // 并把结果以 system message 形式注入，让模型基于真实数据回答。
     const weatherResolved = await resolveWeatherMessages(messages)
@@ -83,6 +83,7 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
     let upstreamResponse: Response
     try {
       const isGlmModel = /^glm/i.test(model)
+      const isNewApiModel = model === 'new-api'
       // GLM 走独立搜索接口增强上下文；无搜索意图时 resolver 原样返回消息，不产生额外开销。
       const messagesForModel = isGlmModel
         ? (await resolveGlmWebSearchMessages(resolved.messages)).messages
@@ -92,11 +93,17 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
           messages: messagesForModel,
           stream
         })
-        : await createDeepSeekStream({
-          model,
-          messages: messagesForModel,
-          stream
-        })
+        : isNewApiModel
+          ? await createNewApiStream({
+            model,
+            messages: messagesForModel,
+            stream
+          })
+          : await createDeepSeekStream({
+            model,
+            messages: messagesForModel,
+            stream
+          })
     } catch (error) {
       reply.code(502)
       return {

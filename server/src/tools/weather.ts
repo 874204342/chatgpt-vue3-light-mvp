@@ -90,7 +90,7 @@ const extractCity = (content: string) => {
 // 该接口免费且无需 API Key，适合本地开发场景。
 const geocodeCity = async (city: string) => {
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${ encodeURIComponent(city) }&count=1&language=zh&format=json`
-  const response = await fetch(url, { signal: AbortSignal.timeout(90000) })
+  const response = await fetch(url, { signal: AbortSignal.timeout(600000) })
 
   if (!response.ok) return null
 
@@ -110,7 +110,7 @@ const fetchForecast = async (latitude: number, longitude: number) => {
   })
 
   const response = await fetch(`https://api.open-meteo.com/v1/forecast?${ params.toString() }`, {
-    signal: AbortSignal.timeout(90000)
+    signal: AbortSignal.timeout(600000)
   })
   if (!response.ok) return null
 

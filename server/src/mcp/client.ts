@@ -105,7 +105,7 @@ const getApifoxClient = async () => {
   })
 
   // 90s 超时，避免 MCP 进程启动失败或握手挂起时永久等待。
-  await client.connect(transport, { timeout: 90000 })
+  await client.connect(transport, { timeout: 600000 })
 
   // 连接建立后立即缓存，后续会话可直接复用。
   clientCache.set('apifox', {
