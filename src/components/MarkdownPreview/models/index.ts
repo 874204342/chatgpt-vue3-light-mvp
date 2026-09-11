@@ -104,6 +104,13 @@ export const createStreamThinkTransformer = () => {
       }
     }
 
+    if (stream && stream.type === 'layout') {
+      return {
+        content: '',
+        layout: stream.data
+      }
+    }
+
     // DeepSeek 存在限速问题，这里做一个简单处理
     // https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit
     if (stream && stream.isWaitQueuing) {
@@ -175,6 +182,7 @@ export const triggerModelTermination = () => {
 
 type ContentResult = {
   content: any
+  layout?: unknown
 } | {
   done: boolean
 }
@@ -201,6 +209,7 @@ export type ChatContentPart =
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant'
   content: string | ChatContentPart[]
+  layout?: unknown
 }
 
 /**
@@ -344,7 +353,8 @@ export const modelMappingList: TypesModelLLM[] = [
         }
       }
       return {
-        content: stream.content
+        content: stream.content,
+        layout: stream.layout
       }
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
@@ -393,7 +403,8 @@ export const modelMappingList: TypesModelLLM[] = [
         }
       }
       return {
-        content: stream.content
+        content: stream.content,
+        layout: stream.layout
       }
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
@@ -495,7 +506,8 @@ export const modelMappingList: TypesModelLLM[] = [
         }
       }
       return {
-        content: stream.content
+        content: stream.content,
+        layout: stream.layout
       }
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。

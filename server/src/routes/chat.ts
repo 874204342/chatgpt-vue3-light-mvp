@@ -3,6 +3,7 @@ import { createDeepSeekStream } from '../llm/deepseek.js'
 import { createNewApiStream } from '../llm/newapi.js'
 import { createGlmStream, resolveGlmWebSearchMessages } from '../llm/glm.js'
 import { resolveMcpMessages } from '../mcp/client.js'
+import { resolveLayoutMessages } from '../tools/layoutGenerate.js'
 import { resolveWeatherMessages } from '../tools/weather.js'
 import type { ChatRequestBody } from '../types/chat.js'
 
@@ -69,12 +70,13 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
         error: 'model and messages are required.'
       }
     }
-    // 先判断是否命中天气类问题：命中时调用 Open-Meteo 查询实时天气，
-    // 并把结果以 system message 形式注入，让模型基于真实数据回答。
-    const weatherResolved = await resolveWeatherMessages(messages)
-    // 未命中天气时，再根据问题内容判断是否走 MCP 增强。
-    // 如果命中 Apifox 类问题，会在消息列表里追加一条 system message，
-    // 把工具查询结果提供给模型作为额外依据。
+    // 提问中包含“排版”时，调用排版接口并将结果以 system message 注入。
+    const layoutResolved = await resolveLayoutMessages(messages)
+    // 未命中排版时，再判断是否命中天气类问题。
+    const weatherResolved = layoutResolved.toolCalls.length
+      ? layoutResolved
+      : await resolveWeatherMessages(messages)
+    // 未命中排版和天气时，再根据问题内容判断是否走 MCP 增强。
     const resolved = weatherResolved.toolCalls.length
       ? weatherResolved
       : await resolveMcpMessages(messages, enableMcp)
@@ -123,6 +125,13 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
     // 如果 body 为空，说明上游返回结果不符合预期。
     if (!upstreamResponse.body) {
       throw new Error('DeepSeek upstream returned empty stream body.')
+    }
+
+    if (layoutResolved.layout) {
+      reply.raw.write(`data: ${ JSON.stringify({
+        type: 'layout',
+        data: layoutResolved.layout
+      }) }\n\n`)
     }
 
     // 持续把上游流写给前端，直到上游结束。

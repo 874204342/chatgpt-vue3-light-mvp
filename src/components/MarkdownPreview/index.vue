@@ -202,6 +202,9 @@ const readTextStream = async () => {
         break
       }
 
+      if (stream.layout) {
+        emit('layout', stream.layout)
+      }
       if (stream.isWaitQueuing) {
         waitingForQueue.value = stream.isWaitQueuing
       }

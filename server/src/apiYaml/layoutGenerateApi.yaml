@@ -1,0 +1,267 @@
+openapi: 3.1.0
+info:
+  title: 默认模块
+  description: ''
+  version: 1.0.0
+tags: []
+paths:
+  /layout/generate/:
+    post:
+      summary: 获取套版结果
+      deprecated: false
+      description: ''
+      tags: []
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                min_cutting_rate:
+                  type: number
+                  title: 最低切裁率
+                cutting_margin:
+                  type: integer
+                  title: 掰片距离
+                sheet_infos:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        title: 原片id
+                      glass_type:
+                        type: integer
+                        title: 原片类型
+                      size:
+                        type: array
+                        items:
+                          type: integer
+                        title: 原片尺寸
+                      num:
+                        type: integer
+                        title: 原片数量
+                      trimming_margin:
+                        type: array
+                        items:
+                          type: array
+                          items:
+                            type: integer
+                        title: 原片修边情况
+                  title: 原片信息
+                glass_infos:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        title: 玻璃id
+                      glass_type:
+                        type: integer
+                        title: 玻璃类型
+                      size:
+                        type: array
+                        items:
+                          type: integer
+                        title: 玻璃尺寸
+                      num:
+                        type: integer
+                        title: 玻璃数量
+                      grinding_margin:
+                        type: array
+                        items:
+                          type: array
+                          items:
+                            type: integer
+                        title: 玻璃磨边信息
+                      new_glass:
+                        type: integer
+                        title: 是否是新玻璃，用于二次套版。默认为0
+                    required:
+                      - id
+                      - glass_type
+                      - size
+                      - num
+                      - grinding_margin
+                      - new_glass
+                  title: 玻璃信息
+                layout_result:
+                  type: 'null'
+                  title: 上一次套版结果，用于二次套版，默认为空
+              required:
+                - min_cutting_rate
+                - cutting_margin
+                - sheet_infos
+                - glass_infos
+                - layout_result
+            example:
+              task_id: L6655443
+              min_cutting_rate: 0.95
+              cutting_margin: 20
+              sheet_infos:
+                - id: 1
+                  glass_type: 0
+                  size:
+                    - 3660
+                    - 2440
+                  num: 11114
+                  trimming_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+              glass_infos:
+                - id: 1
+                  glass_type: 0
+                  size:
+                    - 890
+                    - 440
+                  num: 1
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 2
+                  glass_type: 0
+                  size:
+                    - 507
+                    - 965
+                  num: 2
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 3
+                  glass_type: 0
+                  size:
+                    - 590
+                    - 450
+                  num: 2
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 4
+                  glass_type: 0
+                  size:
+                    - 753
+                    - 697
+                  num: 3
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 5
+                  glass_type: 0
+                  size:
+                    - 800
+                    - 447
+                  num: 2
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 6
+                  glass_type: 0
+                  size:
+                    - 480
+                    - 740
+                  num: 1
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 7
+                  glass_type: 0
+                  size:
+                    - 650
+                    - 707
+                  num: 3
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 8
+                  glass_type: 0
+                  size:
+                    - 850
+                    - 675
+                  num: 2
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 9
+                  glass_type: 0
+                  size:
+                    - 600
+                    - 472
+                  num: 3
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 10
+                  glass_type: 0
+                  size:
+                    - 681
+                    - 990
+                  num: 3
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+                - id: 11
+                  glass_type: 0
+                  size:
+                    - 22
+                    - 22
+                  num: 1
+                  grinding_margin:
+                    - - 0
+                      - 0
+                    - - 0
+                      - 0
+                  new_glass: 0
+              layout_result: null
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: {}
+          headers: {}
+      security: []
+webhooks: {}
+components:
+  schemas: {}
+  responses: {}
+  securitySchemes: {}
+servers: []
+security: []

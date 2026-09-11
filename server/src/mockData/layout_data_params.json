@@ -1,0 +1,66 @@
+{
+	"task_id": "2096868622475563010",
+	"min_cutting_rate": 0,
+	"cutting_margin": 0,
+	"sheet_infos": [{
+		"id": 2096868615429132289,
+		"glass_type": 0,
+		"size": [3660, 2600],
+		"num": 999,
+		"trimming_margin": [
+			[0, 0],
+			[0, 0]
+		]
+	}],
+	"glass_infos": [{
+		"id": 2096868612367290370,
+		"glass_type": 0,
+		"size": [1120, 1200],
+		"num": 8,
+		"grinding_margin": [
+			[0, 0],
+			[0, 0]
+		],
+		"new_glass": 0
+	}, {
+		"id": 2096868612367290372,
+		"glass_type": 0,
+		"size": [1120, 1200],
+		"num": 8,
+		"grinding_margin": [
+			[0, 0],
+			[0, 0]
+		],
+		"new_glass": 0
+	}, {
+		"id": 2096868612367290374,
+		"glass_type": 0,
+		"size": [1120, 1200],
+		"num": 8,
+		"grinding_margin": [
+			[0, 0],
+			[0, 0]
+		],
+		"new_glass": 0
+	}, {
+		"id": 2096868612367290376,
+		"glass_type": 0,
+		"size": [680, 990],
+		"num": 3,
+		"grinding_margin": [
+			[0, 0],
+			[0, 0]
+		],
+		"new_glass": 0
+	}, {
+		"id": 2096868612367290378,
+		"glass_type": 0,
+		"size": [680, 990],
+		"num": 3,
+		"grinding_margin": [
+			[0, 0],
+			[0, 0]
+		],
+		"new_glass": 0
+	}]
+}

@@ -1,0 +1,2840 @@
+﻿export default {
+    "status": 200,
+    "data": {
+        "Ratio": 0.5567968400071666,
+        "SpecPlateAreas": [
+            {
+                "Ratio": 0.8984241467347487,
+                "Width": 3660.0,
+                "Height": 2440.0,
+                "DuplicateMark": "2233444778899910101011",
+                "ParentDuplicateMark": "0",
+                "OriginalId": 1,
+                "OriginalType": 0,
+                "PelList": [
+                    {
+                        "Type": 0,
+                        "Width": 990.0,
+                        "Height": 681.0,
+                        "WasteFlg": 0,
+                        "GlassId": 10,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 0.0,
+                            "Y": 0.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 990.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 990.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 990.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 990.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 990.0,
+                        "Height": 681.0,
+                        "WasteFlg": 0,
+                        "GlassId": 10,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 990.0,
+                            "Y": 0.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 990.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 990.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1980.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 990.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1980.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 1980.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 990.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 1980.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 990.0,
+                        "Height": 681.0,
+                        "WasteFlg": 0,
+                        "GlassId": 10,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 1980.0,
+                            "Y": 0.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1980.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 1980.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2970.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 1980.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2970.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 2970.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1980.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 2970.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 600.0,
+                        "Height": 472.0,
+                        "WasteFlg": 0,
+                        "GlassId": 9,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2970.0,
+                            "Y": 0.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2970.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 2970.0,
+                                            "Y": 472.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3570.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 2970.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3570.0,
+                                            "Y": 472.0
+                                        },
+                                        "End": {
+                                            "X": 3570.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2970.0,
+                                            "Y": 472.0
+                                        },
+                                        "End": {
+                                            "X": 3570.0,
+                                            "Y": 472.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 22.0,
+                        "Height": 22.0,
+                        "WasteFlg": 0,
+                        "GlassId": 11,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2970.0,
+                            "Y": 472.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2970.0,
+                                            "Y": 472.0
+                                        },
+                                        "End": {
+                                            "X": 2970.0,
+                                            "Y": 494.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2992.0,
+                                            "Y": 472.0
+                                        },
+                                        "End": {
+                                            "X": 2970.0,
+                                            "Y": 472.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2992.0,
+                                            "Y": 494.0
+                                        },
+                                        "End": {
+                                            "X": 2992.0,
+                                            "Y": 472.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2970.0,
+                                            "Y": 494.0
+                                        },
+                                        "End": {
+                                            "X": 2992.0,
+                                            "Y": 494.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 753.0,
+                        "Height": 697.0,
+                        "WasteFlg": 0,
+                        "GlassId": 4,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 0.0,
+                            "Y": 681.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 753.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 753.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 753.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 753.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 753.0,
+                        "Height": 697.0,
+                        "WasteFlg": 0,
+                        "GlassId": 4,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 753.0,
+                            "Y": 681.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 753.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 753.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1506.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 753.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1506.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 1506.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 753.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 1506.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 753.0,
+                        "Height": 697.0,
+                        "WasteFlg": 0,
+                        "GlassId": 4,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 1506.0,
+                            "Y": 681.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1506.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 1506.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 1506.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1506.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 590.0,
+                        "Height": 450.0,
+                        "WasteFlg": 0,
+                        "GlassId": 3,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 0.0,
+                            "Y": 1378.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 1828.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 1828.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 1828.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 1828.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 590.0,
+                        "Height": 450.0,
+                        "WasteFlg": 0,
+                        "GlassId": 3,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 0.0,
+                            "Y": 1828.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 1828.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 2278.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 1828.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 1828.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 2278.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 1828.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 2278.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 2278.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 965.0,
+                        "Height": 507.0,
+                        "WasteFlg": 0,
+                        "GlassId": 2,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 590.0,
+                            "Y": 1378.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 1885.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 1885.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 1885.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 1885.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 965.0,
+                        "Height": 507.0,
+                        "WasteFlg": 0,
+                        "GlassId": 2,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 590.0,
+                            "Y": 1885.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 1885.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 2392.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 1885.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 1885.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 2392.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 1885.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 2392.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 2392.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 675.0,
+                        "Height": 850.0,
+                        "WasteFlg": 0,
+                        "GlassId": 8,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 1555.0,
+                            "Y": 1378.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 2228.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2230.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2230.0,
+                                            "Y": 2228.0
+                                        },
+                                        "End": {
+                                            "X": 2230.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 2228.0
+                                        },
+                                        "End": {
+                                            "X": 2230.0,
+                                            "Y": 2228.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 650.0,
+                        "Height": 707.0,
+                        "WasteFlg": 0,
+                        "GlassId": 7,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2259.0,
+                            "Y": 681.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2909.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2909.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 2909.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 2909.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 650.0,
+                        "Height": 707.0,
+                        "WasteFlg": 0,
+                        "GlassId": 7,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2909.0,
+                            "Y": 681.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2909.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 2909.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3559.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 2909.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3559.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 3559.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2909.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 3559.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 600.0,
+                        "Height": 472.0,
+                        "WasteFlg": 0,
+                        "GlassId": 9,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2259.0,
+                            "Y": 1388.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 1860.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 1860.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 1860.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 1860.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 600.0,
+                        "Height": 472.0,
+                        "WasteFlg": 0,
+                        "GlassId": 9,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2259.0,
+                            "Y": 1860.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 1860.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 2332.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 1860.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 1860.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 2332.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 1860.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 2332.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 2332.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 675.0,
+                        "Height": 850.0,
+                        "WasteFlg": 0,
+                        "GlassId": 8,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2859.0,
+                            "Y": 1388.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 2238.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3534.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3534.0,
+                                            "Y": 2238.0
+                                        },
+                                        "End": {
+                                            "X": 3534.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 2238.0
+                                        },
+                                        "End": {
+                                            "X": 3534.0,
+                                            "Y": 2238.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 22.0,
+                        "Height": 187.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2970.0,
+                            "Y": 494.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2970.0,
+                                            "Y": 494.0
+                                        },
+                                        "End": {
+                                            "X": 2970.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2992.0,
+                                            "Y": 494.0
+                                        },
+                                        "End": {
+                                            "X": 2970.0,
+                                            "Y": 494.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2992.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 2992.0,
+                                            "Y": 494.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2970.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 2992.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 578.0,
+                        "Height": 209.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2992.0,
+                            "Y": 472.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2992.0,
+                                            "Y": 472.0
+                                        },
+                                        "End": {
+                                            "X": 2992.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3570.0,
+                                            "Y": 472.0
+                                        },
+                                        "End": {
+                                            "X": 2992.0,
+                                            "Y": 472.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3570.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 3570.0,
+                                            "Y": 472.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2992.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 3570.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 90.0,
+                        "Height": 681.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 3570.0,
+                            "Y": 0.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3570.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 3570.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3660.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 3570.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3660.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 3660.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3570.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 3660.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 590.0,
+                        "Height": 162.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 0.0,
+                            "Y": 2278.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 2278.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 2278.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 2278.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 2278.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 965.0,
+                        "Height": 48.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 590.0,
+                            "Y": 2392.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 2392.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 2392.0
+                                        },
+                                        "End": {
+                                            "X": 590.0,
+                                            "Y": 2392.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 2392.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 590.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 29.0,
+                        "Height": 850.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2230.0,
+                            "Y": 1378.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2230.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 2230.0,
+                                            "Y": 2228.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 1378.0
+                                        },
+                                        "End": {
+                                            "X": 2230.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 2228.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 1378.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2230.0,
+                                            "Y": 2228.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 2228.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 704.0,
+                        "Height": 212.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 1555.0,
+                            "Y": 2228.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 2228.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 2228.0
+                                        },
+                                        "End": {
+                                            "X": 1555.0,
+                                            "Y": 2228.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 2228.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1555.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 600.0,
+                        "Height": 108.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2259.0,
+                            "Y": 2332.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 2332.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 2332.0
+                                        },
+                                        "End": {
+                                            "X": 2259.0,
+                                            "Y": 2332.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 2332.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2259.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 25.0,
+                        "Height": 850.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 3534.0,
+                            "Y": 1388.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3534.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 3534.0,
+                                            "Y": 2238.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3559.0,
+                                            "Y": 1388.0
+                                        },
+                                        "End": {
+                                            "X": 3534.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3559.0,
+                                            "Y": 2238.0
+                                        },
+                                        "End": {
+                                            "X": 3559.0,
+                                            "Y": 1388.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3534.0,
+                                            "Y": 2238.0
+                                        },
+                                        "End": {
+                                            "X": 3559.0,
+                                            "Y": 2238.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 700.0,
+                        "Height": 202.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 2859.0,
+                            "Y": 2238.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 2238.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3559.0,
+                                            "Y": 2238.0
+                                        },
+                                        "End": {
+                                            "X": 2859.0,
+                                            "Y": 2238.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3559.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 3559.0,
+                                            "Y": 2238.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 2859.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 3559.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 101.0,
+                        "Height": 1759.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 3559.0,
+                            "Y": 681.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3559.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 3559.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3660.0,
+                                            "Y": 681.0
+                                        },
+                                        "End": {
+                                            "X": 3559.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3660.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 3660.0,
+                                            "Y": 681.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3559.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 3660.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            {
+                "Ratio": 0.21516953327958435,
+                "Width": 3660.0,
+                "Height": 2440.0,
+                "DuplicateMark": "15567",
+                "ParentDuplicateMark": "1",
+                "OriginalId": 1,
+                "OriginalType": 0,
+                "PelList": [
+                    {
+                        "Type": 0,
+                        "Width": 650.0,
+                        "Height": 707.0,
+                        "WasteFlg": 0,
+                        "GlassId": 7,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 0.0,
+                            "Y": 0.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 707.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 707.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 707.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 707.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 480.0,
+                        "Height": 740.0,
+                        "WasteFlg": 0,
+                        "GlassId": 6,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 0.0,
+                            "Y": 707.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 707.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 1447.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 480.0,
+                                            "Y": 707.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 707.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 480.0,
+                                            "Y": 1447.0
+                                        },
+                                        "End": {
+                                            "X": 480.0,
+                                            "Y": 707.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 1447.0
+                                        },
+                                        "End": {
+                                            "X": 480.0,
+                                            "Y": 1447.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 440.0,
+                        "Height": 890.0,
+                        "WasteFlg": 0,
+                        "GlassId": 1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 0.0,
+                            "Y": 1447.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 1447.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 2337.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 440.0,
+                                            "Y": 1447.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 1447.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 440.0,
+                                            "Y": 2337.0
+                                        },
+                                        "End": {
+                                            "X": 440.0,
+                                            "Y": 1447.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 2337.0
+                                        },
+                                        "End": {
+                                            "X": 440.0,
+                                            "Y": 2337.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 447.0,
+                        "Height": 800.0,
+                        "WasteFlg": 0,
+                        "GlassId": 5,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 650.0,
+                            "Y": 0.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 800.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1097.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1097.0,
+                                            "Y": 800.0
+                                        },
+                                        "End": {
+                                            "X": 1097.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 800.0
+                                        },
+                                        "End": {
+                                            "X": 1097.0,
+                                            "Y": 800.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 447.0,
+                        "Height": 800.0,
+                        "WasteFlg": 0,
+                        "GlassId": 5,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 650.0,
+                            "Y": 800.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 800.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 1600.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1097.0,
+                                            "Y": 800.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 800.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1097.0,
+                                            "Y": 1600.0
+                                        },
+                                        "End": {
+                                            "X": 1097.0,
+                                            "Y": 800.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 1600.0
+                                        },
+                                        "End": {
+                                            "X": 1097.0,
+                                            "Y": 1600.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 170.0,
+                        "Height": 740.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 480.0,
+                            "Y": 707.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 480.0,
+                                            "Y": 707.0
+                                        },
+                                        "End": {
+                                            "X": 480.0,
+                                            "Y": 1447.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 707.0
+                                        },
+                                        "End": {
+                                            "X": 480.0,
+                                            "Y": 707.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 1447.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 707.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 480.0,
+                                            "Y": 1447.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 1447.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 210.0,
+                        "Height": 890.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 440.0,
+                            "Y": 1447.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 440.0,
+                                            "Y": 1447.0
+                                        },
+                                        "End": {
+                                            "X": 440.0,
+                                            "Y": 2337.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 1447.0
+                                        },
+                                        "End": {
+                                            "X": 440.0,
+                                            "Y": 1447.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 2337.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 1447.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 440.0,
+                                            "Y": 2337.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 2337.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 650.0,
+                        "Height": 103.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 0.0,
+                            "Y": 2337.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 2337.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 2337.0
+                                        },
+                                        "End": {
+                                            "X": 0.0,
+                                            "Y": 2337.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 2337.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 0.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 447.0,
+                        "Height": 840.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 650.0,
+                            "Y": 1600.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 1600.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1097.0,
+                                            "Y": 1600.0
+                                        },
+                                        "End": {
+                                            "X": 650.0,
+                                            "Y": 1600.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1097.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 1097.0,
+                                            "Y": 1600.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 650.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 1097.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "Type": 0,
+                        "Width": 2563.0,
+                        "Height": 2440.0,
+                        "WasteFlg": 1,
+                        "GlassId": -1,
+                        "GlassType": 0,
+                        "Position": {
+                            "X": 1097.0,
+                            "Y": 0.0
+                        },
+                        "PolygonPel": {
+                            "Lines": [
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1097.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 1097.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3660.0,
+                                            "Y": 0.0
+                                        },
+                                        "End": {
+                                            "X": 1097.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 3660.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 3660.0,
+                                            "Y": 0.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                },
+                                {
+                                    "Type": 0,
+                                    "StraightLine": {
+                                        "Start": {
+                                            "X": 1097.0,
+                                            "Y": 2440.0
+                                        },
+                                        "End": {
+                                            "X": 3660.0,
+                                            "Y": 2440.0
+                                        }
+                                    },
+                                    "ArcLine": null
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ],
+        "Origin": "left_bottom"
+    },
+    "msg": "套版完成!"
+}

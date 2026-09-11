@@ -5,6 +5,9 @@ import { type InputInst } from 'naive-ui'
 import type { SelectBaseOption } from 'naive-ui/es/select/src/interface'
 import { isGithubDeployed } from '@/config'
 import { imageFileToDataUrl } from '@/utils/files-tool'
+import { layoutGenerateQuestionTemplate } from '@/questionTemplate/layoutGenerate'
+import LayoutCard, { type LayoutResult } from '@/views/card/index.vue'
+
 
 const route = useRoute()
 const router = useRouter()
@@ -51,6 +54,7 @@ type PendingAttachment = {
 const pendingAttachments = ref<PendingAttachment[]>([])
 const refFileInput = ref<HTMLInputElement | null>()
 const conversationList = ref<ChatMessage[]>([])
+const pendingLayout = ref<LayoutResult | null>(null)
 const refConversationContent = ref<HTMLElement | null>()
 
 /**
@@ -91,14 +95,20 @@ const onFailedReader = () => {
   triggerModelTermination()
 }
 
+const handleLayout = (layout: unknown) => {
+  pendingLayout.value = layout as LayoutResult
+}
+
 const onCompletedReader = (answerText = '') => {
   outputTextReader.value = null
-  if (answerText.trim()) {
+  if (answerText.trim() || pendingLayout.value) {
     conversationList.value.push({
       role: 'assistant',
-      content: answerText
+      content: answerText,
+      layout: pendingLayout.value
     })
   }
+  pendingLayout.value = null
   stylizingLoading.value = false
   nextTick(() => {
     scrollConversationToBottom()
@@ -158,7 +168,7 @@ const handleCreateStylized = async () => {
   scrollConversationToBottom()
 
   const { error, reader } = await businessStore.createAssistantWriterStylized({
-    messages: conversationList.value.map(message => ({
+    messages: conversationList.value.map(({ layout, ...message }) => ({
       ...message
     }))
   })
@@ -237,6 +247,7 @@ const handleResetState = () => {
   conversationList.value = []
   pendingAttachments.value = []
   outputTextReader.value = null
+  pendingLayout.value = null
   stylizingLoading.value = false
   nextTick(() => {
     refInputTextString.value?.focus()
@@ -308,7 +319,8 @@ const promptTextList = ref([
 【仓库可用原片库存】
 原片1：3660×2140，库存327片
 原片2：3660×2240，库存300片
-原片3：3660×2440，库存104片`
+原片3：3660×2440，库存104片`,
+  layoutGenerateQuestionTemplate
 ])
 
 
@@ -445,9 +457,16 @@ const promptTextList = ref([
                 class="w-full rounded-16 bg-#fff/75 px-16 py-12"
               >
                 <div
+                  v-if="typeof messageItem.content === 'string' && messageItem.content.trim()"
                   class="markdown-wrapper"
                   v-html="renderMessageContent(messageItem.content)"
                 ></div>
+                <LayoutCard
+                  v-if="messageItem.layout"
+                  :data="messageItem.layout as LayoutResult"
+                  :use-mock="false"
+                  class="mt-16"
+                />
               </div>
             </div>
 
@@ -462,6 +481,7 @@ const promptTextList = ref([
                 :show-empty-placeholder="false"
                 :transform-stream-fn="businessStore.currentModelItem?.transformStreamValue"
                 @failed="onFailedReader"
+                @layout="handleLayout"
                 @completed="onCompletedReader"
               />
             </div>
@@ -527,7 +547,10 @@ const promptTextList = ref([
             v-model:value="inputTextString"
             type="textarea"
             autofocus
-            h-full
+            :autosize="{
+              minRows: 6, // 默认初始高度（6行，你想要默认调大就加大这个值，比如4/5/6）
+              maxRows: 12,
+            }"
             class="textarea-resize-none text-15"
             :style="{
               '--n-border-radius': '20px',

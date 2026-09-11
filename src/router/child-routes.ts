@@ -15,6 +15,11 @@ const childrenRoutes: Array<RouteRecordRaw> = [
         component: () => import('@/views/chat.vue')
       }
     ]
+  },
+  {
+    path: '/card',
+    name: 'CardPreview',
+    component: () => import('@/views/card/index.vue')
   }
 ]
 
