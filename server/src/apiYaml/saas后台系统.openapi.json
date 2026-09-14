@@ -1,0 +1,1196 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "saas后台系统",
+    "description": "saas后台相关接口文档",
+    "version": "1.0",
+    "contact": {
+      "name": "saas"
+    }
+  },
+  "tags": [
+    {
+      "name": "OptimGlassInfoController"
+    },
+    {
+      "name": "OptimImportController"
+    },
+    {
+      "name": "OddmentsWareHouseController"
+    }
+  ],
+  "paths": {
+    "/optimGlassInfo/otherList": {
+      "post": {
+        "summary": "仓库列表",
+        "deprecated": false,
+        "description": "",
+        "operationId": "selectListUsingPOST_13",
+        "tags": [
+          "OptimGlassInfoController"
+        ],
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "pageNum",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "pageSize",
+            "required": false,
+            "example": "",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 5
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptimGlassHouseParam"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResult%C2%ABCommonPage%C2%ABOptimGlassInfoVo%C2%BB%C2%BB"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "201": {
+            "description": "Created",
+            "headers": {}
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {}
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {}
+          },
+          "404": {
+            "description": "Not Found",
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "Authorization": [
+              "global"
+            ]
+          }
+        ]
+      }
+    },
+    "/optimImport/importOrder": {
+      "post": {
+        "summary": "成品——订单导入",
+        "deprecated": false,
+        "description": "",
+        "operationId": "importOrderUsingPOST",
+        "tags": [
+          "OptimImportController"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportOrderBo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResult%C2%ABCommonPage%C2%ABImportProductVo%C2%BB%C2%BB"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "201": {
+            "description": "Created",
+            "headers": {}
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {}
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {}
+          },
+          "404": {
+            "description": "Not Found",
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "Authorization": [
+              "global"
+            ]
+          }
+        ]
+      }
+    },
+    "/warehouse/oddmentsWareHouse/pageList": {
+      "post": {
+        "summary": "余料仓库列表",
+        "deprecated": false,
+        "description": "",
+        "operationId": "pageListUsingPOST_4",
+        "tags": [
+          "OddmentsWareHouseController"
+        ],
+        "parameters": [
+          {
+            "name": "pageNum",
+            "in": "query",
+            "description": "pageNum",
+            "required": true,
+            "example": "",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "pageSize",
+            "required": true,
+            "example": "",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OddmentsWareHouseParam"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonResult%C2%ABCommonPage%C2%ABOddmentsWareHouseListVo%C2%BB%C2%BB"
+                }
+              }
+            },
+            "headers": {}
+          },
+          "201": {
+            "description": "Created",
+            "headers": {}
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {}
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {}
+          },
+          "404": {
+            "description": "Not Found",
+            "headers": {}
+          }
+        },
+        "security": [
+          {
+            "Authorization": [
+              "global"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "webhooks": {},
+  "components": {
+    "schemas": {
+      "CommonPage«ImportProductVo»": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportProductVo"
+            }
+          },
+          "pageNum": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sum": {
+            "$ref": "#/components/schemas/ImportProductVo"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPage": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "title": "CommonPage«ImportProductVo»"
+      },
+      "CommonPage«OddmentsWareHouseListVo»": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OddmentsWareHouseListVo"
+            }
+          },
+          "pageNum": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sum": {
+            "$ref": "#/components/schemas/OddmentsWareHouseListVo"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPage": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "title": "CommonPage«OddmentsWareHouseListVo»"
+      },
+      "CommonPage«OptimGlassInfoVo»": {
+        "type": "object",
+        "properties": {
+          "list": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OptimGlassInfoVo"
+            }
+          },
+          "pageNum": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sum": {
+            "$ref": "#/components/schemas/OptimGlassInfoVo"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPage": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "title": "CommonPage«OptimGlassInfoVo»"
+      },
+      "CommonResult«CommonPage«ImportProductVo»»": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CommonPage%C2%ABImportProductVo%C2%BB"
+          },
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "title": "CommonResult«CommonPage«ImportProductVo»»"
+      },
+      "CommonResult«CommonPage«OddmentsWareHouseListVo»»": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CommonPage%C2%ABOddmentsWareHouseListVo%C2%BB"
+          },
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "title": "CommonResult«CommonPage«OddmentsWareHouseListVo»»"
+      },
+      "CommonResult«CommonPage«OptimGlassInfoVo»»": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CommonPage%C2%ABOptimGlassInfoVo%C2%BB"
+          },
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "title": "CommonResult«CommonPage«OptimGlassInfoVo»»"
+      },
+      "ExportByFieldParamVo": {
+        "type": "object",
+        "properties": {
+          "dataSize": {
+            "type": "integer",
+            "format": "int32",
+            "description": "导出数据大小"
+          },
+          "fields": {
+            "type": "array",
+            "description": "导出字段",
+            "items": {
+              "$ref": "#/components/schemas/TitleFieldVo"
+            }
+          }
+        },
+        "title": "ExportByFieldParamVo"
+      },
+      "ImportOrderBo": {
+        "type": "object",
+        "required": [
+          "showSpec"
+        ],
+        "properties": {
+          "categoryName": {
+            "type": "string",
+            "description": "品类名称"
+          },
+          "createDateBegin": {
+            "type": "string",
+            "format": "date-time",
+            "description": "制单日期(开始)"
+          },
+          "createDateEnd": {
+            "type": "string",
+            "format": "date-time",
+            "description": "制单日期（结束）"
+          },
+          "creatorName": {
+            "type": "string",
+            "description": "创建人"
+          },
+          "customerName": {
+            "type": "string",
+            "description": "客户名称"
+          },
+          "dataState": {
+            "type": "integer",
+            "format": "int32",
+            "description": "数据状态：啥都不传：全部；1正常；2作废"
+          },
+          "exportParam": {
+            "$ref": "#/components/schemas/ExportByFieldParamVo"
+          },
+          "floorNumber": {
+            "type": "string",
+            "description": "楼层编号"
+          },
+          "glassName": {
+            "type": "string",
+            "description": "单片名称"
+          },
+          "glassNum": {
+            "type": "integer",
+            "format": "int32",
+            "description": "玻璃面"
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "description": "高"
+          },
+          "optimPlanType": {
+            "type": "integer",
+            "format": "int32",
+            "description": "优化方案类型: 0:正式优化; 1:预优化"
+          },
+          "orderNumber": {
+            "type": "string",
+            "description": "订单编号"
+          },
+          "orderTypeId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "订单类型"
+          },
+          "pageParam": {
+            "$ref": "#/components/schemas/%E5%88%86%E9%A1%B5%E5%8F%82%E6%95%B0"
+          },
+          "productName": {
+            "type": "string",
+            "description": "产品名称"
+          },
+          "projectName": {
+            "type": "string",
+            "description": "项目名称"
+          },
+          "selfNumber": {
+            "type": "string",
+            "description": "自编号"
+          },
+          "sendDateBegin": {
+            "type": "string",
+            "format": "date-time",
+            "description": "交货日期-开始时间"
+          },
+          "sendDateEnd": {
+            "type": "string",
+            "format": "date-time",
+            "description": "交货日期-结束时间"
+          },
+          "showSpec": {
+            "type": "boolean",
+            "description": "显示规格明细"
+          },
+          "sortParam": {
+            "$ref": "#/components/schemas/%E6%8E%92%E5%BA%8F%E5%8F%82%E6%95%B0%C2%ABstring%C2%BB"
+          },
+          "thickness": {
+            "type": "number",
+            "description": "厚度"
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "宽"
+          }
+        },
+        "title": "ImportOrderBo"
+      },
+      "ImportProductVo": {
+        "type": "object",
+        "properties": {
+          "area": {
+            "type": "number",
+            "description": "面积(单位平方米)"
+          },
+          "cardId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "流程Id"
+          },
+          "cardNo": {
+            "type": "string",
+            "description": "流程卡号"
+          },
+          "cardRemark": {
+            "type": "string",
+            "description": "流程卡备注"
+          },
+          "categoryName": {
+            "type": "string",
+            "description": "品类名称"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          },
+          "creatorName": {
+            "type": "string",
+            "description": "创建人"
+          },
+          "customerName": {
+            "type": "string",
+            "description": "客户名称"
+          },
+          "floorNumber": {
+            "type": "string",
+            "description": "楼层编号"
+          },
+          "glassCategoryId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "单片品类id"
+          },
+          "glassName": {
+            "type": "string",
+            "description": "单片名称"
+          },
+          "glassNum": {
+            "type": "integer",
+            "format": "int32",
+            "description": "玻璃面(第几面)"
+          },
+          "glassQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "description": "单片数量"
+          },
+          "height": {
+            "type": "number",
+            "description": "高"
+          },
+          "heightSize": {
+            "type": "string",
+            "description": "高尺寸"
+          },
+          "heteromorphicEnclosureUrl": {
+            "type": "string",
+            "description": "异形文件路径"
+          },
+          "heteromorphicEnclosureUrlShow": {
+            "type": "string",
+            "description": "异形文件展示"
+          },
+          "heteromorphicSize": {
+            "type": "string",
+            "description": "异形尺寸,json格式"
+          },
+          "inputMode": {
+            "type": "integer",
+            "format": "int32",
+            "description": "成品录入方式;0:手动录入;1:excel导入;2:订单导入;3:流程卡导入;4:补片流程卡导入;5:质量索赔导入;"
+          },
+          "logoSet": {
+            "type": "string",
+            "description": "logo打标设置"
+          },
+          "markBaseType": {
+            "type": "integer",
+            "format": "int32",
+            "description": "打标基准"
+          },
+          "mergdeList": {
+            "type": "array",
+            "description": "合并前的数据",
+            "items": {
+              "$ref": "#/components/schemas/ImportProductVo"
+            }
+          },
+          "orderId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "订单id"
+          },
+          "orderNumber": {
+            "type": "string",
+            "description": "订单编号"
+          },
+          "orderSpecId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "规格id"
+          },
+          "orderTypeId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "订单类型Id"
+          },
+          "orderTypeName": {
+            "type": "string",
+            "description": "订单类型名称"
+          },
+          "productName": {
+            "type": "string",
+            "description": "产品名称"
+          },
+          "projectName": {
+            "type": "string",
+            "description": "项目名称"
+          },
+          "remark": {
+            "type": "string",
+            "description": "备注"
+          },
+          "requirement": {
+            "type": "string",
+            "description": "加工要求"
+          },
+          "selfNumber": {
+            "type": "string",
+            "description": "自编号"
+          },
+          "shelfNumber": {
+            "type": "string"
+          },
+          "shortId": {
+            "type": "string",
+            "description": "短id"
+          },
+          "specialTechnologyEnclosureUrl": {
+            "type": "string",
+            "description": "特殊工艺附件（文件路径）"
+          },
+          "specialTechnologyEnclosureUrlShow": {
+            "type": "string",
+            "description": "特殊工艺附件展示"
+          },
+          "specialTechnologyLocation": {
+            "type": "string",
+            "description": "特殊工艺位置，json格式"
+          },
+          "specialTechnologyNames": {
+            "type": "string",
+            "description": "特殊工艺"
+          },
+          "thickness": {
+            "type": "number",
+            "description": "单片厚度"
+          },
+          "unPlateQuantity": {
+            "type": "integer",
+            "format": "int32",
+            "description": "未优化单片数"
+          },
+          "uniqueIndex": {
+            "type": "string",
+            "description": "数据唯一标识"
+          },
+          "width": {
+            "type": "number",
+            "description": "宽"
+          },
+          "widthSize": {
+            "type": "string",
+            "description": "宽尺寸"
+          }
+        },
+        "title": "ImportProductVo"
+      },
+      "OddmentsWareHouseListVo": {
+        "type": "object",
+        "properties": {
+          "area": {
+            "type": "number",
+            "description": "库存面积"
+          },
+          "categoryId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "品类"
+          },
+          "categoryName": {
+            "type": "string",
+            "description": "颜色/膜系"
+          },
+          "codeNo": {
+            "type": "string",
+            "description": "标签码"
+          },
+          "colorFilms": {
+            "type": "string",
+            "description": "颜色/膜系"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "入库日期"
+          },
+          "factory": {
+            "type": "string",
+            "description": "原片厂家"
+          },
+          "height": {
+            "type": "number",
+            "description": "高"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "编号"
+          },
+          "level": {
+            "type": "string",
+            "description": "等级"
+          },
+          "operator": {
+            "type": "string",
+            "description": "制单人"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "description": "库存数量"
+          },
+          "remark": {
+            "type": "string",
+            "description": "备注"
+          },
+          "thickness": {
+            "type": "number",
+            "description": "厚度"
+          },
+          "totalSize": {
+            "type": "integer",
+            "format": "int32",
+            "description": "总条数"
+          },
+          "wareHouseLocation": {
+            "type": "string",
+            "description": "库位名称"
+          },
+          "wareHouseNameId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "库位Id"
+          },
+          "width": {
+            "type": "number",
+            "description": "宽"
+          }
+        },
+        "title": "OddmentsWareHouseListVo"
+      },
+      "OddmentsWareHouseParam": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "品类"
+          },
+          "codeNo": {
+            "type": "string",
+            "description": "标签码"
+          },
+          "colorFilms": {
+            "type": "string",
+            "description": "颜色/膜系"
+          },
+          "createEndTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最后入库日期（结束）"
+          },
+          "createStartTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最后入库日期（开始）"
+          },
+          "factory": {
+            "type": "string",
+            "description": "原片厂家"
+          },
+          "height": {
+            "type": "number",
+            "description": "高"
+          },
+          "level": {
+            "type": "string",
+            "description": "等级"
+          },
+          "oddmentsWareHouseSortEnum": {
+            "type": "string",
+            "description": "排序字段",
+            "enum": [
+              "thickness",
+              "width",
+              "height",
+              "quantity",
+              "area",
+              "createTime"
+            ],
+            "examples": [
+              "thickness"
+            ]
+          },
+          "sortEnum": {
+            "type": "string",
+            "description": "正序asc,倒序desc",
+            "enum": [
+              "ASC",
+              "DESC"
+            ]
+          },
+          "thickness": {
+            "type": "number",
+            "description": "厚度"
+          },
+          "wareHouseNameId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "库位Id"
+          },
+          "width": {
+            "type": "number",
+            "description": "宽"
+          }
+        },
+        "title": "OddmentsWareHouseParam"
+      },
+      "OptimGlassHouseParam": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "原片类别"
+          },
+          "colorFilms": {
+            "type": "string",
+            "description": "颜色/膜系编号"
+          },
+          "excludeZeroStock": {
+            "type": "integer",
+            "format": "int32",
+            "description": "排除0的仓库"
+          },
+          "factory": {
+            "type": "string",
+            "description": "原片厂家"
+          },
+          "glassName": {
+            "type": "string",
+            "description": "原片名称"
+          },
+          "glassNo": {
+            "type": "string",
+            "description": "物料编码"
+          },
+          "lastStockDateEnd": {
+            "type": "string",
+            "format": "date",
+            "description": "最后入库日期结束yyyy-MM-dd"
+          },
+          "lastStockDateStart": {
+            "type": "string",
+            "format": "date",
+            "description": "最后入库日期开始yyyy-MM-dd"
+          },
+          "level": {
+            "type": "string",
+            "description": "原片等级"
+          },
+          "sortParam": {
+            "$ref": "#/components/schemas/%E6%8E%92%E5%BA%8F%E5%8F%82%E6%95%B0%C2%ABstring%C2%BB"
+          },
+          "specs": {
+            "type": "string",
+            "description": "规格ID"
+          },
+          "stockLocationId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "库位ID"
+          },
+          "stockLocationIds": {
+            "type": "array",
+            "description": "库位ID集合",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "supplierId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "供应商ID"
+          },
+          "thickness": {
+            "type": "number",
+            "description": "厚度"
+          }
+        },
+        "title": "OptimGlassHouseParam"
+      },
+      "OptimGlassInfoVo": {
+        "type": "object",
+        "properties": {
+          "area": {
+            "type": "number",
+            "description": "库存面积"
+          },
+          "categoryId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "原片类别"
+          },
+          "categoryName": {
+            "type": "string",
+            "description": "品类名称"
+          },
+          "categoryWmsId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "wms系统原片ID"
+          },
+          "colorFilms": {
+            "type": "string",
+            "description": "颜色/膜系编号"
+          },
+          "createTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          },
+          "dataState": {
+            "type": "integer",
+            "format": "int32",
+            "description": "数据状态 （-1：全部；1：正常；2：作废）"
+          },
+          "factory": {
+            "type": "string",
+            "description": "原片厂家"
+          },
+          "glassId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "原片信息编号"
+          },
+          "glassName": {
+            "type": "string",
+            "description": "原片名称"
+          },
+          "glassNo": {
+            "type": "string",
+            "description": "物料编码"
+          },
+          "height": {
+            "type": "integer",
+            "format": "int32",
+            "description": "高"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "编号"
+          },
+          "inHousePerPrices": {
+            "type": "string",
+            "description": "入库单价"
+          },
+          "lastStockDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "最后入库日期"
+          },
+          "level": {
+            "type": "string",
+            "description": "原片等级"
+          },
+          "lockNum": {
+            "type": "integer",
+            "format": "int32",
+            "description": "锁库数量"
+          },
+          "lowerLimit": {
+            "type": "integer",
+            "format": "int32",
+            "description": "库存下限"
+          },
+          "materialCode": {
+            "type": "string",
+            "description": "原片标识"
+          },
+          "num": {
+            "type": "integer",
+            "format": "int32",
+            "description": "可用库存量"
+          },
+          "pageTotal": {
+            "type": "integer",
+            "format": "int32",
+            "description": "总条数"
+          },
+          "perPrice": {
+            "type": "number",
+            "description": "库存均单价"
+          },
+          "perPriceReal": {
+            "type": "number",
+            "description": "库存均单价实际值"
+          },
+          "price": {
+            "type": "number",
+            "description": "总价"
+          },
+          "specs": {
+            "type": "string",
+            "description": "规格"
+          },
+          "stockLocationIds": {
+            "type": "string",
+            "description": "库位ID"
+          },
+          "stockLocationList": {
+            "type": "array",
+            "description": "库位集合（不含禁用）",
+            "items": {
+              "$ref": "#/components/schemas/StockLocation"
+            }
+          },
+          "stockLocationNames": {
+            "type": "string",
+            "description": "库位名称集合"
+          },
+          "thickness": {
+            "type": "number",
+            "description": "厚度"
+          },
+          "totalNum": {
+            "type": "integer",
+            "format": "int32",
+            "description": "总库存量"
+          },
+          "weight": {
+            "type": "number",
+            "description": "库存重量"
+          },
+          "width": {
+            "type": "integer",
+            "format": "int32",
+            "description": "宽"
+          }
+        },
+        "title": "OptimGlassInfoVo"
+      },
+      "StockLocation": {
+        "type": "object",
+        "properties": {
+          "stockLocationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stockLocationName": {
+            "type": "string"
+          }
+        },
+        "title": "StockLocation"
+      },
+      "TitleFieldVo": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "字段名"
+          },
+          "title": {
+            "type": "string",
+            "description": "标题"
+          }
+        },
+        "title": "TitleFieldVo"
+      },
+      "分页参数": {
+        "type": "object",
+        "properties": {
+          "pageNum": {
+            "type": "integer",
+            "format": "int32",
+            "description": "页数"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32",
+            "description": "每页条数"
+          }
+        },
+        "title": "分页参数"
+      },
+      "排序参数«string»": {
+        "type": "object",
+        "properties": {
+          "sortBy": {
+            "type": "string",
+            "description": "排序字段",
+            "enum": [
+              "TaskSheetProductSortEnum.createTime(value=TaskSheetProduct.CreateTime)",
+              "TaskSheetProductSortEnum.orderTypeId(value=OrderInfo.OrderTypeId)"
+            ]
+          },
+          "sortType": {
+            "type": "string",
+            "description": "排序方式,正序asc,倒序desc",
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          }
+        },
+        "title": "排序参数«string»"
+      }
+    },
+    "responses": {},
+    "securitySchemes": {
+      "Authorization": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header"
+      }
+    }
+  },
+  "servers": [],
+  "security": []
+}

@@ -309,17 +309,6 @@ const PromptTag = defineComponent({
 
 const promptTextList = ref([
   '打个招呼吧，并告诉我你的名字',
-  '使用中文，回答以下两个问题，分段表示\n1、你是什么模型？\n2、请分别使用 Vue3 和 React 编写一个 Button 组件，要求在 Vue3 中使用 Setup Composition API 语法糖，在 React 中使用 TSX 语法',
-  `请严格按照下面订单、原片库存做玻璃套料排版优化。
-【成品订单】
-白玻1：1100×1000：135片
-白玻2：800×950：23片
-白玻3：300×850：55片
-
-【仓库可用原片库存】
-原片1：3660×2140，库存327片
-原片2：3660×2240，库存300片
-原片3：3660×2440，库存104片`,
   layoutGenerateQuestionTemplate
 ])
 
@@ -575,8 +564,8 @@ const promptTextList = ref([
           </button>
           <n-float-button
             position="absolute"
-            :right="40"
-            bottom="50%"
+            :right="35"
+            :bottom="35"
             :type="stylizingLoading ? 'primary' : 'default'"
             color
             :class="[

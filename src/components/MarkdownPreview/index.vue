@@ -61,6 +61,8 @@ const renderedMarkdown = computed(() => {
 
 // 接口响应是否正在排队等待
 const waitingForQueue = ref(false)
+// 排版任务的真实处理阶段，仅在生成正文前临时展示。
+const layoutProgress = ref('')
 
 const WaitTextRender = defineComponent({
   render() {
@@ -113,6 +115,7 @@ const resetStatus = () => {
   initializeEnd()
   displayText.value = ''
   textBuffer.value = ''
+  layoutProgress.value = ''
   readerLoading.value = false
   if (typingAnimationFrame) {
     cancelAnimationFrame(typingAnimationFrame)
@@ -205,11 +208,15 @@ const readTextStream = async () => {
       if (stream.layout) {
         emit('layout', stream.layout)
       }
+      if (stream.layoutProgress) {
+        layoutProgress.value = stream.layoutProgress
+      }
       if (stream.isWaitQueuing) {
         waitingForQueue.value = stream.isWaitQueuing
       }
       if (stream.content) {
         waitingForQueue.value = false
+        layoutProgress.value = ''
         // 接口一旦返回真实内容，先进入缓冲区，后续再由 showText 按帧吐到页面。
         textBuffer.value += stream.content
       }
@@ -374,9 +381,11 @@ const handlePassClip = () => {
 }
 
 const emptyPlaceholder = computed(() => {
-  return defaultMockModelName === props.model
-    ? '问一个问题，我才会消失 ~'
-    : '问一个问题，我才会消失 ~'
+  const text = '我是聚玻AI数字员工，有什么我能帮你的吗？'
+  return text
+  // return defaultMockModelName === props.model
+  //   ? '问一个问题，我才会消失 ~'
+  //   : '有什么我能帮你的吗？'
 })
 </script>
 
@@ -439,7 +448,24 @@ const emptyPlaceholder = computed(() => {
         />
         <template v-else>
           <n-empty
-            v-if="!displayText && showEmptyPlaceholder"
+            v-if="layoutProgress && !displayText"
+            size="large"
+            class="font-bold"
+          >
+            <div
+              whitespace-break-spaces
+              text-center
+            >
+              {{ layoutProgress }}
+            </div>
+            <template #icon>
+              <n-icon class="text-30">
+                <div class="i-svg-spinners:3-dots-rotate"></div>
+              </n-icon>
+            </template>
+          </n-empty>
+          <n-empty
+            v-else-if="!displayText && showEmptyPlaceholder"
             size="large"
             class="font-bold"
           >

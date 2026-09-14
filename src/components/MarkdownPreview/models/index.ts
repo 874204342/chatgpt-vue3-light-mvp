@@ -111,6 +111,13 @@ export const createStreamThinkTransformer = () => {
       }
     }
 
+    if (stream && stream.type === 'layout-progress') {
+      return {
+        content: '',
+        layoutProgress: stream.message
+      }
+    }
+
     // DeepSeek 存在限速问题，这里做一个简单处理
     // https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit
     if (stream && stream.isWaitQueuing) {
@@ -183,6 +190,7 @@ export const triggerModelTermination = () => {
 type ContentResult = {
   content: any
   layout?: unknown
+  layoutProgress?: string
 } | {
   done: boolean
 }
@@ -354,7 +362,8 @@ export const modelMappingList: TypesModelLLM[] = [
       }
       return {
         content: stream.content,
-        layout: stream.layout
+        layout: stream.layout,
+        layoutProgress: stream.layoutProgress
       }
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
@@ -404,7 +413,8 @@ export const modelMappingList: TypesModelLLM[] = [
       }
       return {
         content: stream.content,
-        layout: stream.layout
+        layout: stream.layout,
+        layoutProgress: stream.layoutProgress
       }
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
@@ -458,7 +468,9 @@ export const modelMappingList: TypesModelLLM[] = [
         }
       }
       return {
-        content: stream.content
+        content: stream.content,
+        layout: stream.layout,
+        layoutProgress: stream.layoutProgress
       }
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。
@@ -507,7 +519,8 @@ export const modelMappingList: TypesModelLLM[] = [
       }
       return {
         content: stream.content,
-        layout: stream.layout
+        layout: stream.layout,
+        layoutProgress: stream.layoutProgress
       }
     },
     // Event Stream 调用大模型接口 DeepSeek 深度求索 (Fetch 调用)。

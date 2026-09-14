@@ -3,7 +3,7 @@ import { createDeepSeekStream } from '../llm/deepseek.js'
 import { createNewApiStream } from '../llm/newapi.js'
 import { createGlmStream, resolveGlmWebSearchMessages } from '../llm/glm.js'
 import { resolveMcpMessages } from '../mcp/client.js'
-import { resolveLayoutMessages } from '../tools/layoutGenerate.js'
+import { resolveLayoutMessages, shouldGenerateLayout } from '../tools/layoutGenerate.js'
 import { resolveWeatherMessages } from '../tools/weather.js'
 import type { ChatRequestBody } from '../types/chat.js'
 
@@ -70,8 +70,29 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
         error: 'model and messages are required.'
       }
     }
-    // 提问中包含“排版”时，调用排版接口并将结果以 system message 注入。
-    const layoutResolved = await resolveLayoutMessages(messages)
+    const isLayoutRequest = await shouldGenerateLayout(messages)
+    const writeLayoutProgress = (message: string) => {
+      reply.raw.write(`data: ${ JSON.stringify({
+        type: 'layout-progress',
+        message
+      }) }\n\n`)
+    }
+
+    if (isLayoutRequest) {
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive'
+      })
+    }
+
+    // 识别为套料意图后，先推送真实处理进度，再将摘要交给模型生成解读。
+    const layoutResolved = await resolveLayoutMessages(
+      messages,
+      isLayoutRequest,
+      isLayoutRequest ? writeLayoutProgress : undefined
+    )
+
     // 未命中排版时，再判断是否命中天气类问题。
     const weatherResolved = layoutResolved.toolCalls.length
       ? layoutResolved
@@ -87,7 +108,7 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
       const isGlmModel = /^glm/i.test(model)
       const isNewApiModel = model === 'new-api'
       // GLM 走独立搜索接口增强上下文；无搜索意图时 resolver 原样返回消息，不产生额外开销。
-      const messagesForModel = isGlmModel
+      const messagesForModel = isGlmModel && !layoutResolved.layout
         ? (await resolveGlmWebSearchMessages(resolved.messages)).messages
         : resolved.messages
       upstreamResponse = isGlmModel
@@ -113,13 +134,14 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
       }
     }
 
-    // 明确告诉前端这是一个 SSE 风格的长连接流式响应。
-    // 当前实现无论 stream 参数是否为 false，最终都按流式响应头写回。
-    reply.raw.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive'
-    })
+    // 非排版请求在上游连接建立后写入 SSE 响应头；排版请求已提前建立连接以展示进度。
+    if (!isLayoutRequest) {
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive'
+      })
+    }
 
     // 正常情况下上游应该提供 body 供我们持续转发。
     // 如果 body 为空，说明上游返回结果不符合预期。
@@ -127,11 +149,13 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
       throw new Error('DeepSeek upstream returned empty stream body.')
     }
 
+    // 排版算法完成后先推送结果卡片，再继续流式输出 AI 解读。
     if (layoutResolved.layout) {
       reply.raw.write(`data: ${ JSON.stringify({
         type: 'layout',
         data: layoutResolved.layout
       }) }\n\n`)
+      writeLayoutProgress('排版完成，正在生成方案解读…')
     }
 
     // 持续把上游流写给前端，直到上游结束。

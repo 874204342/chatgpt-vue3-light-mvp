@@ -138,11 +138,13 @@ const formatWebSearchResults = (results: GlmWebSearchResult[]) => {
 }
 
 // 根据最后一条用户消息联网搜索，并把结果作为 system message 注入。
-// search_intent=false 表示跳过意图识别、强制搜索，每次 GLM 请求都会执行搜索。
+const shouldUseGlmWebSearch = (query: string) => {
+  return /搜索|查一下|帮我查|最新|今天|新闻|网页/.test(query)
+}
+
 export const resolveGlmWebSearchMessages = async (messages: ChatMessage[]) => {
   const query = extractTextContent([...messages].reverse().find(message => message.role === 'user')?.content ?? '').trim()
-  console.log('[GLM] 原始查询:', query)
-  if (!query) {
+  if (!query || !shouldUseGlmWebSearch(query)) {
     return {
       messages,
       toolCalls: []

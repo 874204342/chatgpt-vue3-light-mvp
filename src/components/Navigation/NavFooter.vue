@@ -20,7 +20,7 @@ const link = ref('https://github.com/pdsuwwz')
       'b-t b-t-solid b-t-#dcdfe6 dark:b-t-#444': showBorder
     }"
   >
-    <div
+    <!-- <div
       class="container"
     >
       <p
@@ -35,7 +35,7 @@ const link = ref('https://github.com/pdsuwwz')
           Wisdom
         </a>
       </p>
-    </div>
+    </div> -->
   </footer>
 </template>
 
@@ -43,6 +43,7 @@ const link = ref('https://github.com/pdsuwwz')
 .footer {
   margin: 0 auto;
   width: 100%;
+  padding-bottom: 16px;
 
   --at-apply: select-none;
   --at-apply: flex justify-center;
