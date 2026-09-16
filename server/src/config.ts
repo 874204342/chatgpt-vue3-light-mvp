@@ -25,6 +25,7 @@ const deepseekBaseUrl = process.env.DEEPSEEK_BASE_URL || 'https://newapi.juboclo
 // 智谱 GLM 上游配置。
 const glmApiKey = process.env.GLM_API_KEY || process.env.VITE_GLM_KEY || ''
 const glmBaseUrl = process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas'
+const saasBaseUrl = process.env.SAAS_API_BASE_URL || ''
 const port = Number(process.env.LOCAL_AI_SERVER_PORT || 3001)
 
 if (!deepseekApiKey) {
@@ -43,5 +44,6 @@ export const serverConfig = {
   deepseekBaseUrl,
   glmApiKey,
   glmBaseUrl,
+  saasBaseUrl,
   port
 }

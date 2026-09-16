@@ -4,8 +4,51 @@ import { createNewApiStream } from '../llm/newapi.js'
 import { createGlmStream, resolveGlmWebSearchMessages } from '../llm/glm.js'
 import { resolveMcpMessages } from '../mcp/client.js'
 import { resolveLayoutMessages, shouldGenerateLayout } from '../tools/layoutGenerate.js'
+import { getSaasUser } from './saas.js'
+import { resolveInventoryMessages } from '../tools/inventory.js'
+import { resolveOrderMessages } from '../tools/order.js'
 import { resolveWeatherMessages } from '../tools/weather.js'
-import type { ChatRequestBody } from '../types/chat.js'
+import { type ChatMessage, type ChatRequestBody, extractTextContent } from '../types/chat.js'
+
+const getSaasUserName = (user: Record<string, unknown> | null) => {
+  if (!user) return ''
+  const name = user.nickName || user.userName || user.username || user.tenantUsername
+  return typeof name === 'string' && name.trim() ? name.trim() : ''
+}
+
+const withSaasAuthContext = (request: FastifyRequest, messages: ChatMessage[]) => {
+  const user = getSaasUser(request)
+  const userName = getSaasUserName(user)
+  const authContent = user
+    ? [
+      `当前用户已登录 SaaS${ userName ? `，登录账号为 ${ userName }` : '' }。`,
+      '如果本轮消息中已经提供库存、订单等实时业务数据，必须直接基于这些数据回答。',
+      '业务查询结果必须同时包含简短摘要和 Markdown 明细表，不得只返回摘要；必须保留工具提供的当前页全部明细行，不得合并、省略或虚构记录。',
+      '不要再说用户未登录、无法查询或请先登录。历史对话里如果出现过未登录提示，以当前登录状态为准。'
+    ].join('\n')
+    : [
+      '当前用户尚未登录 SaaS。',
+      '只有在用户明确查询库存、订单等需要登录的业务数据时，才提示先在页面右上角登录。',
+      '普通问答不要主动强调未登录。'
+    ].join('\n')
+
+  const firstSystemIndex = messages.findIndex(message => message.role === 'system')
+  if (firstSystemIndex < 0) {
+    return [{
+      role: 'system' as const,
+      content: authContent
+    }, ...messages]
+  }
+
+  return messages.map((message, index) => {
+    if (index !== firstSystemIndex) return message
+    const original = extractTextContent(message.content)
+    return {
+      ...message,
+      content: original ? `${ original }\n${ authContent }` : authContent
+    }
+  })
+}
 
 // 将 fetch 返回的 Web ReadableStream 写入 Node.js 的响应流。
 // Fastify 的 reply.raw 本质上是 Node 的原始响应对象，而上游 fetch 返回的是 Web Stream，
@@ -88,6 +131,7 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
 
     // 识别为套料意图后，先推送真实处理进度，再将摘要交给模型生成解读。
     const layoutResolved = await resolveLayoutMessages(
+      request,
       messages,
       isLayoutRequest,
       isLayoutRequest ? writeLayoutProgress : undefined
@@ -97,10 +141,19 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
     const weatherResolved = layoutResolved.toolCalls.length
       ? layoutResolved
       : await resolveWeatherMessages(messages)
-    // 未命中排版和天气时，再根据问题内容判断是否走 MCP 增强。
-    const resolved = weatherResolved.toolCalls.length
+    // 未命中排版和天气时，再按当前用户登录会话查询库存。
+    const inventoryResolved = weatherResolved.toolCalls.length
       ? weatherResolved
+      : await resolveInventoryMessages(request, messages)
+    // 未命中排版、天气和库存时，再按当前用户登录会话查询订单。
+    const orderResolved = inventoryResolved.toolCalls.length
+      ? inventoryResolved
+      : await resolveOrderMessages(request, messages)
+    // 未命中业务工具时，再根据问题内容判断是否走 MCP 增强。
+    const resolved = orderResolved.toolCalls.length
+      ? orderResolved
       : await resolveMcpMessages(messages, enableMcp)
+    const messagesWithAuth = withSaasAuthContext(request, resolved.messages)
     // 根据模型名称选择上游：glm 开头走智谱 GLM，其余走 DeepSeek。
     // 上游异常时返回 502 + 可读错误信息，便于前端弹窗提示。
     let upstreamResponse: Response
@@ -109,8 +162,8 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
       const isNewApiModel = model === 'new-api'
       // GLM 走独立搜索接口增强上下文；无搜索意图时 resolver 原样返回消息，不产生额外开销。
       const messagesForModel = isGlmModel && !layoutResolved.layout
-        ? (await resolveGlmWebSearchMessages(resolved.messages)).messages
-        : resolved.messages
+        ? (await resolveGlmWebSearchMessages(messagesWithAuth)).messages
+        : messagesWithAuth
       upstreamResponse = isGlmModel
         ? await createGlmStream({
           messages: messagesForModel,

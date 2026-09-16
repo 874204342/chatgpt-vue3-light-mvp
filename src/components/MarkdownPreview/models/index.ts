@@ -377,6 +377,7 @@ export const modelMappingList: TypesModelLLM[] = [
       })
       const req = new Request(url, {
         method: 'post',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -428,6 +429,7 @@ export const modelMappingList: TypesModelLLM[] = [
       })
       const req = new Request(url, {
         method: 'post',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -484,6 +486,7 @@ export const modelMappingList: TypesModelLLM[] = [
       })
       const req = new Request(url, {
         method: 'post',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -535,6 +538,7 @@ export const modelMappingList: TypesModelLLM[] = [
 
       const req = new Request(url, {
         method: 'post',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },

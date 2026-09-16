@@ -46,6 +46,7 @@ const isCompleted = ref(false)
 const emit = defineEmits([
   'failed',
   'completed',
+  'layout',
   'update:reader'
 ])
 
@@ -387,6 +388,37 @@ const emptyPlaceholder = computed(() => {
   //   ? '问一个问题，我才会消失 ~'
   //   : '有什么我能帮你的吗？'
 })
+
+// 将后端返回的排版进度文案映射为更稳定的阶段标题与说明，提升加载态体验。
+const layoutProgressMeta = computed(() => {
+  const progressText = layoutProgress.value.trim()
+
+  if (progressText.includes('订单') && progressText.includes('库存')) {
+    return {
+      title: '正在同步业务数据',
+      caption: '系统正在读取订单规格与可用原片库存，请稍候片刻。'
+    }
+  }
+
+  if (progressText.includes('整理') || progressText.includes('解析')) {
+    return {
+      title: '正在整理排版参数',
+      caption: '系统正在校验成品尺寸、数量与原片信息，准备进入计算阶段。'
+    }
+  }
+
+  if (progressText.includes('计算') || progressText.includes('排版')) {
+    return {
+      title: '正在生成最优方案',
+      caption: '系统正在调用排版算法，综合评估利用率与裁切方案。'
+    }
+  }
+
+  return {
+    title: '正在处理中',
+    caption: '系统正在调用业务能力生成结果，请稍候。'
+  }
+})
 </script>
 
 <template>
@@ -447,23 +479,36 @@ const emptyPlaceholder = computed(() => {
           v-if="waitingForQueue && !displayText"
         />
         <template v-else>
-          <n-empty
+          <div
             v-if="layoutProgress && !displayText"
-            size="large"
-            class="font-bold"
+            class="layout-progress-panel"
           >
+            <div
+              class="layout-progress-panel__halo"
+              aria-hidden="true"
+            ></div>
+            <div class="layout-progress-panel__badge">
+              智能处理中
+            </div>
+            <div class="layout-progress-panel__icon">
+              <n-icon class="text-28">
+                <div class="i-svg-spinners:3-dots-rotate"></div>
+              </n-icon>
+            </div>
+            <div class="layout-progress-panel__title">
+              {{ layoutProgressMeta.title }}
+            </div>
+            <div class="layout-progress-panel__caption">
+              {{ layoutProgressMeta.caption }}
+            </div>
             <div
               whitespace-break-spaces
               text-center
+              class="layout-progress-panel__detail"
             >
               {{ layoutProgress }}
             </div>
-            <template #icon>
-              <n-icon class="text-30">
-                <div class="i-svg-spinners:3-dots-rotate"></div>
-              </n-icon>
-            </template>
-          </n-empty>
+          </div>
           <n-empty
             v-else-if="!displayText && showEmptyPlaceholder"
             size="large"
@@ -484,7 +529,7 @@ const emptyPlaceholder = computed(() => {
             v-else
             ref="refWrapperContent"
             text-16
-            class="w-full h-full overflow-y-auto"
+            class="w-full h-full overflow-auto"
             p-24px
           >
             <div
@@ -507,7 +552,104 @@ const emptyPlaceholder = computed(() => {
 </template>
 
 <style lang="scss">
+.layout-progress-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  padding: 28px 24px;
+  overflow: hidden;
+  border: 1px solid rgb(157 176 225 / 18%);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 92%), rgb(244 248 255 / 88%));
+  box-shadow:
+    0 18px 45px rgb(84 104 156 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 82%);
+
+  &__halo {
+    position: absolute;
+    top: -68px;
+    width: 180px;
+    height: 180px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgb(120 149 219 / 14%), transparent 70%);
+    pointer-events: none;
+  }
+
+  &__badge {
+    position: relative;
+    z-index: 1;
+    padding: 4px 10px;
+    border: 1px solid rgb(146 167 219 / 22%);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 76%);
+    color: #5b6f95;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+  }
+
+  &__icon {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border: 1px solid rgb(157 176 225 / 18%);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgb(255 255 255 / 88%), rgb(241 246 255 / 82%));
+    color: #5f7ed6;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 84%);
+  }
+
+  &__title {
+    position: relative;
+    z-index: 1;
+    color: #18253d;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  &__caption {
+    position: relative;
+    z-index: 1;
+    max-width: 420px;
+    color: #6d7f9a;
+    font-size: 14px;
+    line-height: 1.75;
+    text-align: center;
+  }
+
+  &__detail {
+    position: relative;
+    z-index: 1;
+    padding: 8px 12px;
+    border: 1px solid rgb(157 176 225 / 14%);
+    border-radius: 14px;
+    background: rgb(255 255 255 / 72%);
+    color: #4e6183;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+}
+
 .markdown-wrapper {
+  color: #24344f;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
 
   h1 {
     font-size: 2em;
@@ -534,13 +676,15 @@ const emptyPlaceholder = computed(() => {
   }
 
   h1,h2,h3,h4,h5,h6 {
-    margin: 0 auto;
+    margin: 0 auto 0.8em;
+    color: #17233d;
     line-height: 1.25;
+    font-weight: 700;
   }
 
   & ul,ol {
     padding-left: 1.5em;
-    line-height: 0.8;
+    line-height: 1.5;
   }
 
   & ul,li,ol {
@@ -566,22 +710,32 @@ const emptyPlaceholder = computed(() => {
   }
 
   hr {
-    margin: 16px 0;
+    margin: 20px 0;
+    border: 0;
+    border-top: 1px solid rgb(148 163 184 / 25%);
   }
 
   a {
-    color: $color-default;
-    font-weight: bolder;
-    text-decoration: underline;
+    color: #4d72ff;
+    font-weight: 700;
+    text-decoration: none;
     padding: 0 3px;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #3458dc;
+    }
   }
 
   p {
-    line-height: 1.4;
+    margin: 0 0 1em;
+    line-height: 1.85;
 
     & > code {
-      --at-apply: 'bg-#e5e5e5';
+      --at-apply: 'bg-#edf2ff';
       --at-apply: whitespace-pre mx-4px px-6px py-3px rounded-5px;
+
+      color: #3552a2;
     }
 
 
@@ -595,11 +749,12 @@ const emptyPlaceholder = computed(() => {
   }
 
   blockquote {
-    padding: 10px;
+    padding: 14px 16px;
     margin: 20px 0;
-    border-left: 5px solid #ccc;
-    background-color: #f9f9f9;
-    color: #555;
+    border-left: 4px solid #7c93ff;
+    border-radius: 0 14px 14px 0;
+    background: linear-gradient(90deg, rgb(113 141 255 / 10%), rgb(241 246 255 / 92%));
+    color: #4d5f80;
 
     & > p {
       margin: 0;
@@ -619,22 +774,29 @@ const emptyPlaceholder = computed(() => {
 
   table {
     --at-apply: w-fit border-collapse my-16;
+
+    overflow: hidden;
+    border-radius: 14px;
+    border-style: hidden;
+    box-shadow: 0 12px 28px rgb(54 76 128 / 8%);
   }
 
   th, td {
-    --at-apply: p-7 text-left border border-solid border-#ccc;
+    --at-apply: p-7 text-left border border-solid border-#d9e1f4;
   }
 
   th {
-    --at-apply: bg-#f2f2f2 font-bold;
+    --at-apply: bg-#f4f7ff font-bold;
+
+    color: #31456a;
   }
 
   tr:nth-child(even) {
-    --at-apply: bg-#f9f9f9;
+    --at-apply: bg-#fafcff;
   }
 
   tr:hover {
-    --at-apply: bg-#f1f1f1;
+    --at-apply: bg-#f4f8ff;
   }
 
   // Deepseek 深度思考 Wrapper

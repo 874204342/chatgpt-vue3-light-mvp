@@ -24,8 +24,9 @@
         </div>
         <div
           flex="1"
-          p="20px"
+          p="5px"
           overflow-y-auto
+          class="sidebar-scroll-area"
         >
           <slot name="sidebar"></slot>
         </div>
@@ -47,4 +48,23 @@
 </template>
 
 <style lang="scss" scoped>
+.sidebar-scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(133 156 208 / 65%) transparent;
+
+  &::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgb(176 191 227 / 78%), rgb(129 149 197 / 82%));
+  }
+
+  &::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgb(255 255 255 / 12%);
+  }
+}
 </style>
