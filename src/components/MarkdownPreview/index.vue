@@ -2,7 +2,6 @@
 import { renderMarkdownText, renderMermaidProcess } from './plugins/markdown'
 
 import type { CrossTransformFunction, TransformFunction } from './models'
-import { defaultMockModelName } from './models'
 
 interface Props {
   // 上层传入的流式 reader。
@@ -382,7 +381,7 @@ const handlePassClip = () => {
 }
 
 const emptyPlaceholder = computed(() => {
-  const text = '我是聚玻AI数字员工，有什么我能帮你的吗？'
+  const text = '我是聚玻・棱弈，有什么我能帮你的吗？'
   return text
   // return defaultMockModelName === props.model
   //   ? '问一个问题，我才会消失 ~'
@@ -765,6 +764,213 @@ const layoutProgressMeta = computed(() => {
     }
   }
 
+  .layout-analysis {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 6px 0 2px;
+
+    &__hero {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 20px 22px;
+      overflow: hidden;
+      border: 1px solid rgb(143 166 221 / 18%);
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgb(255 255 255 / 96%), rgb(243 247 255 / 94%));
+      box-shadow:
+        0 14px 34px rgb(74 95 140 / 8%),
+        inset 0 1px 0 rgb(255 255 255 / 88%);
+
+      &::before {
+        position: absolute;
+        top: -56px;
+        right: -12px;
+        width: 172px;
+        height: 172px;
+        content: '';
+        background: radial-gradient(circle, rgb(110 142 222 / 12%), transparent 72%);
+        pointer-events: none;
+      }
+    }
+
+    &__hero-badge,
+    &__section-badge {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      padding: 4px 10px;
+      border: 1px solid rgb(143 166 221 / 16%);
+      border-radius: 999px;
+      background: rgb(255 255 255 / 80%);
+      color: #5d719a;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+
+    &__section-badge--risk {
+      border-color: rgb(217 101 101 / 18%);
+      background: rgb(255 243 243 / 84%);
+      color: #b34747;
+    }
+
+    &__hero-main {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px 20px;
+    }
+
+    &__hero-title {
+      color: #17233d;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.35;
+      letter-spacing: 0.01em;
+    }
+
+    &__hero-metric {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    &__hero-metric-label {
+      color: #7788a6;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    &__hero-metric-value {
+      color: #234fcf;
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    &__hero-desc,
+    &__note {
+      position: relative;
+      z-index: 1;
+      color: #556985;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    &__note {
+      padding-top: 12px;
+      border-top: 1px solid rgb(143 166 221 / 12%);
+      color: #6b7b96;
+      font-size: 13px;
+    }
+
+    &__grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    &__section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+      padding: 18px 18px 16px;
+      border: 1px solid rgb(148 165 206 / 14%);
+      border-radius: 20px;
+      background:
+        linear-gradient(180deg, rgb(255 255 255 / 94%), rgb(248 250 255 / 92%));
+      box-shadow:
+        0 10px 24px rgb(79 101 146 / 6%),
+        inset 0 1px 0 rgb(255 255 255 / 88%);
+    }
+
+    &__section--secondary {
+      grid-column: 1 / -1;
+    }
+
+    &__section--risk {
+      border-color: rgb(220 103 103 / 16%);
+      background:
+        linear-gradient(180deg, rgb(255 248 248 / 98%), rgb(255 240 240 / 96%));
+      box-shadow:
+        0 12px 28px rgb(171 82 82 / 8%),
+        inset 0 1px 0 rgb(255 255 255 / 92%);
+    }
+
+    &__list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    &__item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px 14px;
+      border: 1px solid rgb(148 165 206 / 10%);
+      border-radius: 16px;
+      background: rgb(255 255 255 / 72%);
+    }
+
+    &__item-label {
+      color: #1f3150;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    &__item-label--risk {
+      color: #993d3d;
+    }
+
+    &__item-text {
+      color: #576980;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    &__item-text--risk {
+      color: #8c4a4a;
+    }
+
+    &__inline-metric {
+      color: #234fcf;
+      font-weight: 700;
+    }
+
+    &__alert-num {
+      display: inline-block;
+      padding: 0 6px;
+      margin: 0 2px;
+      border-radius: 999px;
+      background: rgb(220 84 84 / 12%);
+      color: #bc4343;
+      font-weight: 700;
+    }
+
+    &__alert-tag {
+      color: #b34747;
+      font-weight: 700;
+    }
+  }
+
   .katex {
     --at-apply: c-primary;
   }
@@ -811,6 +1017,34 @@ const layoutProgressMeta = computed(() => {
 
     p {
       --at-apply: line-height-26;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .layout-analysis {
+      &__hero {
+        padding: 18px 18px 16px;
+      }
+
+      &__hero-title {
+        font-size: 20px;
+      }
+
+      &__hero-metric {
+        align-items: flex-start;
+      }
+
+      &__hero-metric-value {
+        font-size: 30px;
+      }
+
+      &__grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      &__section--secondary {
+        grid-column: auto;
+      }
     }
   }
 }

@@ -1,25 +1,19 @@
 <script setup lang="ts">
 import type { DataTableColumns } from 'naive-ui'
-import { getOrderImportCategorySummary, getOrderImportList } from '@/api/order-import'
-
-type OrderImportRow = {
-  uniqueIndex?: string
-  categoryName?: string
-  thickness?: string | number
-  orderNumber?: string
-  customerName?: string
-  projectName?: string
-  floorNumber?: string
-  productName?: string
-  glassName?: string
-  unPlateQuantity?: string | number
-  area?: string | number
-  createTime?: string
-  mergdeList?: OrderImportRow[]
-}
+import {
+  getOrderImportCategorySummary,
+  getOrderImportList
+} from '@/api/order-import'
+import type { OrderImportRow } from '@/api/order-import'
 
 type CategorySummaryItem = {
   unOptimThickness?: string
+}
+
+type OrderImportPayload = {
+  rows: OrderImportRow[]
+  autoGenerate?: boolean
+  source: 'local' | 'excel'
 }
 
 const props = defineProps<{
@@ -28,7 +22,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:show': [value: boolean]
-  import: [rows: OrderImportRow[]]
+  import: [payload: OrderImportPayload]
 }>()
 
 const message = useMessage()
@@ -42,6 +36,8 @@ const pageSize = ref(50)
 const checkedRowKeys = ref<Array<string | number>>([])
 const selectedRowMap = ref<Record<string, OrderImportRow>>({})
 const categorySummaryMap = ref<Record<string, CategorySummaryItem[]>>({})
+const LOCAL_TABLE_SCROLL_X = 1530
+const tableMaxHeight = ref(460)
 
 const thirtyDaysRange = () => {
   const end = new Date()
@@ -71,7 +67,7 @@ const searchForm = reactive(createSearchForm())
 
 const rowKey = (row: OrderImportRow) => row.uniqueIndex || `${ row.orderNumber || '' }-${ row.glassName || '' }-${ row.createTime || '' }`
 
-const columns: DataTableColumns<OrderImportRow> = [
+const localColumns: DataTableColumns<OrderImportRow> = [
   {
     type: 'selection',
     multiple: true
@@ -214,6 +210,17 @@ const syncCheckedRowKeys = () => {
   checkedRowKeys.value = Object.keys(selectedRowMap.value)
 }
 
+const syncTableLayout = async () => {
+  await nextTick()
+  if (typeof window === 'undefined') return
+
+  // Naive DataTable 在弹窗内更适合使用明确高度，避免 body 区在首次渲染时被算成 0。
+  tableMaxHeight.value = Math.min(Math.max(window.innerHeight - 360, 320), 560)
+  requestAnimationFrame(() => {
+    window.dispatchEvent(new Event('resize'))
+  })
+}
+
 const fetchCategorySummary = async () => {
   summaryLoading.value = true
   try {
@@ -254,11 +261,11 @@ const fetchOrderList = async () => {
     }
     tableData.value = response?.data?.list || []
     total.value = Number(response?.data?.total || 0)
-    // 当前订单导入已切换为本地 mock 数据源；无数据时直接明确提示，避免用户误以为仍依赖登录态。
     if (!tableData.value.length) {
       message.info(response?.message || '当前暂无可导入的本地订单数据')
     }
     syncCheckedRowKeys()
+    await syncTableLayout()
   } finally {
     loading.value = false
   }
@@ -272,10 +279,15 @@ const resetFilters = async () => {
   await fetchOrderList()
 }
 
-const initializeDialog = async () => {
+const initializeLocalTab = async () => {
   selectedRowMap.value = {}
   syncCheckedRowKeys()
   await resetFilters()
+}
+
+const initializeDialog = async () => {
+  // 弹窗已收敛为单一“本地订单”入口，打开时直接刷新筛选和列表数据。
+  await initializeLocalTab()
 }
 
 const closeDialog = () => {
@@ -316,21 +328,30 @@ const handleUpdateCheckedRowKeys = (
   checkedRowKeys.value = keys
 }
 
-const handleImport = () => {
+const emitImport = (rows: OrderImportRow[], source: 'local' | 'excel', autoGenerate = false) => {
+  emit('import', {
+    rows,
+    source,
+    autoGenerate
+  })
+  closeDialog()
+}
+
+const handleImportLocalOrders = () => {
   const selectedRows = Object.values(selectedRowMap.value)
   if (!selectedRows.length) {
     message.warning('请先勾选订单')
     return
   }
-  emit('import', selectedRows)
-  closeDialog()
+  emitImport(selectedRows, 'local')
 }
 
 watch(
   () => props.show,
-  (value) => {
+  async (value) => {
     if (!value) return
-    initializeDialog()
+    await initializeDialog()
+    await syncTableLayout()
   }
 )
 </script>
@@ -341,156 +362,167 @@ watch(
     :show="show"
     preset="card"
     title="导入订单"
-    style="width: min(1200px, calc(100vw - 32px));"
+    style="width: min(1240px, calc(100vw - 32px));"
     :bordered="false"
     :segmented="{ content: true }"
     @update:show="emit('update:show', $event)"
   >
     <div class="order-import-dialog">
-      <n-space
-        class="order-import-dialog__filters"
-        align="end"
-        wrap
-        :size="12"
-      >
-        <n-form-item
-          label="制单日期"
-          style="width: 280px;"
+      <div class="order-import-dialog__local-panel">
+        <n-space
+          class="order-import-dialog__filters"
+          align="end"
+          wrap
+          :size="12"
         >
-          <n-date-picker
-            v-model:value="searchForm.createDateRange"
-            type="daterange"
-            clearable
-            style="width: 100%;"
-          />
-        </n-form-item>
-        <n-form-item
-          label="交货日期"
-          style="width: 280px;"
-        >
-          <n-date-picker
-            v-model:value="searchForm.sendDateRange"
-            type="daterange"
-            clearable
-            style="width: 100%;"
-          />
-        </n-form-item>
-        <n-form-item
-          label="订单编号"
-          style="width: 220px;"
-        >
-          <n-input
-            v-model:value="searchForm.orderNumber"
-            placeholder="请输入订单编号"
-          />
-        </n-form-item>
-        <n-form-item
-          label="客户名称"
-          style="width: 220px;"
-        >
-          <n-input
-            v-model:value="searchForm.customerName"
-            placeholder="请输入客户名称"
-          />
-        </n-form-item>
-        <n-form-item
-          label="项目名称"
-          style="width: 220px;"
-        >
-          <n-input
-            v-model:value="searchForm.projectName"
-            placeholder="请输入项目名称"
-          />
-        </n-form-item>
-        <n-form-item
-          label="楼层编号"
-          style="width: 220px;"
-        >
-          <n-input
-            v-model:value="searchForm.floorNumber"
-            placeholder="请输入楼层编号"
-          />
-        </n-form-item>
-        <n-form-item
-          label="单片名称"
-          style="width: 220px;"
-        >
-          <n-input
-            v-model:value="searchForm.glassName"
-            placeholder="请输入单片名称"
-          />
-        </n-form-item>
-        <n-form-item
-          label="品类"
-          style="width: 180px;"
-        >
-          <n-select
-            v-model:value="searchForm.categoryName"
-            :options="categoryOptions"
-            clearable
-            placeholder="请选择品类"
-            :loading="summaryLoading"
-            @update:value="handleCategoryChange"
-          />
-        </n-form-item>
-        <n-form-item
-          label="厚度"
-          style="width: 160px;"
-        >
-          <n-select
-            v-model:value="searchForm.thickness"
-            :options="thicknessOptions"
-            clearable
-            placeholder="请选择厚度"
-            @update:value="handleThicknessChange"
-          />
-        </n-form-item>
-        <n-space>
-          <n-button
-            type="primary"
-            @click="handleSearch"
+          <n-form-item
+            label="制单日期"
+            style="width: 280px;"
           >
-            查询
-          </n-button>
-          <n-button @click="resetFilters">
-            重置
-          </n-button>
+            <n-date-picker
+              v-model:value="searchForm.createDateRange"
+              type="daterange"
+              clearable
+              style="width: 100%;"
+            />
+          </n-form-item>
+          <n-form-item
+            label="交货日期"
+            style="width: 280px;"
+          >
+            <n-date-picker
+              v-model:value="searchForm.sendDateRange"
+              type="daterange"
+              clearable
+              style="width: 100%;"
+            />
+          </n-form-item>
+          <n-form-item
+            label="订单编号"
+            style="width: 220px;"
+          >
+            <n-input
+              v-model:value="searchForm.orderNumber"
+              placeholder="请输入订单编号"
+            />
+          </n-form-item>
+          <n-form-item
+            label="客户名称"
+            style="width: 220px;"
+          >
+            <n-input
+              v-model:value="searchForm.customerName"
+              placeholder="请输入客户名称"
+            />
+          </n-form-item>
+          <n-form-item
+            label="项目名称"
+            style="width: 220px;"
+          >
+            <n-input
+              v-model:value="searchForm.projectName"
+              placeholder="请输入项目名称"
+            />
+          </n-form-item>
+          <n-form-item
+            label="楼层编号"
+            style="width: 220px;"
+          >
+            <n-input
+              v-model:value="searchForm.floorNumber"
+              placeholder="请输入楼层编号"
+            />
+          </n-form-item>
+          <n-form-item
+            label="单片名称"
+            style="width: 220px;"
+          >
+            <n-input
+              v-model:value="searchForm.glassName"
+              placeholder="请输入单片名称"
+            />
+          </n-form-item>
+          <n-form-item
+            label="品类"
+            style="width: 180px;"
+          >
+            <n-select
+              v-model:value="searchForm.categoryName"
+              :options="categoryOptions"
+              clearable
+              placeholder="请选择品类"
+              :loading="summaryLoading"
+              @update:value="handleCategoryChange"
+            />
+          </n-form-item>
+          <n-form-item
+            label="厚度"
+            style="width: 160px;"
+          >
+            <n-select
+              v-model:value="searchForm.thickness"
+              :options="thicknessOptions"
+              clearable
+              placeholder="请选择厚度"
+              @update:value="handleThicknessChange"
+            />
+          </n-form-item>
+          <n-space>
+            <n-button
+              type="primary"
+              @click="handleSearch"
+            >
+              查询
+            </n-button>
+            <n-button @click="resetFilters">
+              重置
+            </n-button>
+          </n-space>
         </n-space>
-      </n-space>
 
-      <n-data-table
-        class="order-import-dialog__table"
-        remote
-        max-height="calc(100vh - 360px)"
-        :loading="loading"
-        :columns="columns"
-        :data="tableData"
-        :row-key="rowKey"
-        :checked-row-keys="checkedRowKeys"
-        @update:checked-row-keys="handleUpdateCheckedRowKeys"
-      />
+        <div class="order-import-dialog__table-header">
+          <span class="order-import-dialog__selected-count">已选择 {{ selectedCount }} 条订单</span>
+        </div>
 
-      <div class="pagination-wrap">
-        <n-pagination
-          v-model:page="pageNum"
-          v-model:page-size="pageSize"
-          :item-count="total"
-          show-size-picker
-          :page-sizes="[20, 50, 100]"
-          @update:page="fetchOrderList"
-          @update:page-size="fetchOrderList"
-        />
+        <div class="order-import-dialog__table-wrap">
+          <!-- 表格区域占据剩余高度，避免内容被弹窗高度挤压后出现可视区丢失。 -->
+          <n-data-table
+            class="order-import-dialog__table"
+            remote
+            :bordered="false"
+            :loading="loading"
+            :columns="localColumns"
+            :data="tableData"
+            :single-line="false"
+            :scroll-x="LOCAL_TABLE_SCROLL_X"
+            :max-height="tableMaxHeight"
+            :row-key="rowKey"
+            :checked-row-keys="checkedRowKeys"
+            @update:checked-row-keys="handleUpdateCheckedRowKeys"
+          />
+        </div>
+
+        <div class="pagination-wrap">
+          <n-pagination
+            v-model:page="pageNum"
+            v-model:page-size="pageSize"
+            :item-count="total"
+            show-size-picker
+            :page-sizes="[20, 50, 100]"
+            @update:page="fetchOrderList"
+            @update:page-size="fetchOrderList"
+          />
+        </div>
       </div>
 
       <div class="dialog-footer">
-        <span>已选择 {{ selectedCount }} 条订单</span>
-        <n-space>
+        <n-space class="dialog-footer__actions">
           <n-button @click="closeDialog">
             取消
           </n-button>
           <n-button
             type="primary"
-            @click="handleImport"
+            @click="handleImportLocalOrders"
           >
             导入到输入框
           </n-button>
@@ -503,44 +535,148 @@ watch(
 <style scoped lang="scss">
 .order-import-dialog {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 12px;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 120px);
+  min-height: 0;
 }
 
 .order-import-dialog__filters {
   flex-shrink: 0;
 }
 
-.order-import-dialog__table {
+.order-import-dialog__local-panel {
+  display: flex;
   flex: 1;
   min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.order-import-dialog__table-wrap {
+  display: flex;
+  flex: 1;
+  min-height: 320px;
+  overflow: auto;
+  border: 1px solid rgb(157 176 225 / 16%);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 94%), rgb(247 250 255 / 88%)),
+    radial-gradient(circle at top left, rgb(255 255 255 / 74%), transparent 42%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 72%),
+    0 10px 24px rgb(64 88 150 / 6%);
+  backdrop-filter: blur(14px);
+}
+
+.order-import-dialog__table-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 24px;
+}
+
+.order-import-dialog__selected-count {
+  color: #50627f;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.order-import-dialog__table {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .dialog-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(157 176 225 / 12%);
   flex-shrink: 0;
+}
+
+.dialog-footer__actions {
+  justify-content: flex-end;
+}
+
+.dialog-footer__actions :deep(.n-button) {
+  min-width: 112px;
+  height: 40px;
+  border-radius: 12px;
 }
 
 .pagination-wrap {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   flex-shrink: 0;
 }
 
 .order-import-modal {
+
   :deep(.n-card) {
-    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 40px);
   }
 
   :deep(.n-card__content) {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
     overflow: hidden;
   }
 
   :deep(.n-form-item) {
     margin-bottom: 0;
+  }
+
+  :deep(.n-data-table) {
+    height: 100%;
+    background: transparent;
+  }
+
+  :deep(.n-data-table-wrapper) {
+    height: 100%;
+  }
+
+  :deep(.n-data-table-base-table-body) {
+    min-height: 120px;
+  }
+
+  :deep(.n-data-table-base-table-header) {
+    background: rgb(244 247 255 / 92%);
+  }
+
+  :deep(.n-data-table-th) {
+    color: #50627f;
+    font-weight: 600;
+  }
+
+  :deep(.n-data-table-td) {
+    background: transparent;
+  }
+}
+
+@media (width <= 820px) {
+
+  .dialog-footer {
+    justify-content: stretch;
+  }
+
+  .dialog-footer__actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .dialog-footer__actions :deep(.n-button) {
+    flex: 1;
+    min-width: 0;
   }
 }
 </style>

@@ -1,16 +1,17 @@
 <script lang="tsx" setup>
 import { renderMarkdownText, renderMermaidProcess } from '@/components/MarkdownPreview/plugins/markdown'
 import { type ChatContentPart, type ChatMessage, triggerModelTermination } from '@/components/MarkdownPreview/models'
+import { type OrderImportRow, downloadOrderImportTemplate, uploadOrderImportExcelPreview } from '@/api/order-import'
 import { type InputInst } from 'naive-ui'
 import { useConversationStore } from '@/store/hooks/useConversationStore'
-import { imageFileToDataUrl } from '@/utils/files-tool'
+import { fileToBase64, imageFileToDataUrl } from '@/utils/files-tool'
+import InventoryDialog from '@/views/chat/components/InventoryDialog.vue'
 import OrderImportDialog from '@/views/chat/components/OrderImportDialog.vue'
 import {
   buildLayoutGenerateQuestionTemplate,
   inventoryQuestionTemplate,
   layoutGenerateQuestionTemplate,
   mapCloudOptimizationOrdersToLayoutPromptItems,
-  orderQuestionTemplate,
   remainderQuestionTemplate
 } from '@/questionTemplate/layoutGenerate'
 import LayoutCard, { type LayoutResult } from '@/views/card/index.vue'
@@ -34,8 +35,11 @@ setTimeout(() => {
 
 
 const stylizingLoading = ref(false)
+const excelQuickImportLoading = ref(false)
 const message = useMessage()
+const inventoryDialogVisible = ref(false)
 const orderImportDialogVisible = ref(false)
+const composerActionVisible = ref(false)
 const renameDialogVisible = ref(false)
 const renamingConversationId = ref('')
 const renameConversationValue = ref('')
@@ -53,6 +57,7 @@ type PendingAttachment = {
 
 const pendingAttachments = ref<PendingAttachment[]>([])
 const refFileInput = ref<HTMLInputElement | null>()
+const refExcelImportInput = ref<HTMLInputElement | null>()
 const pendingLayout = ref<LayoutResult | null>(null)
 const refConversationContent = ref<HTMLElement | null>()
 const respondingConversationId = ref('')
@@ -222,8 +227,49 @@ const openOrderImportDialog = () => {
   orderImportDialogVisible.value = true
 }
 
-const handleImportOrders = async (rows: any[]) => {
-  const orders = mapCloudOptimizationOrdersToLayoutPromptItems(rows || [])
+const openInventoryDialog = () => {
+  if (stylizingLoading.value) {
+    message.warning('请等待当前对话完成后再查看库存')
+    return
+  }
+  inventoryDialogVisible.value = true
+}
+
+const handleOpenImageUpload = () => {
+  if (stylizingLoading.value) {
+    message.warning('请等待当前对话完成后再上传文件')
+    return
+  }
+  composerActionVisible.value = false
+  refFileInput.value?.click()
+}
+
+const handleOpenExcelQuickImport = () => {
+  if (stylizingLoading.value) {
+    message.warning('请等待当前对话完成后再导入 Excel')
+    return
+  }
+  composerActionVisible.value = false
+  refExcelImportInput.value?.click()
+}
+
+const handleDownloadExcelTemplate = async () => {
+  composerActionVisible.value = false
+  try {
+    await downloadOrderImportTemplate()
+    message.success('Excel 模板已开始下载')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Excel 模板下载失败'
+    message.warning(errorMessage)
+  }
+}
+
+const handleImportOrders = async (payload: {
+  rows: OrderImportRow[]
+  autoGenerate?: boolean
+  source: 'local' | 'excel'
+}) => {
+  const orders = mapCloudOptimizationOrdersToLayoutPromptItems(payload?.rows || [])
     .filter(item => String(item.name || '').trim())
   if (!orders.length) {
     message.warning('未识别到可分析的订单数据')
@@ -234,7 +280,9 @@ const handleImportOrders = async (rows: any[]) => {
   })
   await nextTick()
   refInputTextString.value?.focus()
-  // message.success('已将订单分析文本填入输入框，可继续修改后再发送')
+  if (payload?.autoGenerate) {
+    await handleCreateStylized()
+  }
 }
 
 const getQueryValue = (value: unknown) => {
@@ -289,7 +337,7 @@ const placeholder = computed(() => {
   if (stylizingLoading.value) {
     return '正在生成中，可点击右下角按钮中断当前回答...'
   }
-  return '输入任意问题，按 Enter 发送，Shift + Enter 换行...'
+  return '输入订单、库存或排版需求，Enter 发送，Shift + Enter 换行...'
 })
 
 // 对话区统一使用固定的助手身份文案，避免暴露底层模型细节，保持产品表达更高级克制。
@@ -347,6 +395,54 @@ const handleUploadFile = (event: Event) => {
   })
 
   input.value = ''
+}
+
+const handleExcelQuickImport = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  const isExcelFile = /\.xlsx?$/i.test(file.name)
+  if (!isExcelFile) {
+    message.warning('请上传 Excel 文件（.xlsx 或 .xls）')
+    input.value = ''
+    return
+  }
+
+  excelQuickImportLoading.value = true
+  try {
+    const fileContent = await fileToBase64(file)
+    const response = await uploadOrderImportExcelPreview({
+      fileName: file.name,
+      fileContent,
+      mergeDuplicates: true
+    })
+    if (response?.code !== 200) {
+      message.warning(response?.message || 'Excel 解析失败')
+      return
+    }
+
+    const rows = response?.data?.rows || []
+    const orders = mapCloudOptimizationOrdersToLayoutPromptItems(rows)
+      .filter(item => String(item.name || '').trim())
+    if (!orders.length) {
+      message.warning('未识别到可分析的有效订单')
+      return
+    }
+
+    inputTextString.value = buildLayoutGenerateQuestionTemplate({
+      orders
+    })
+    await nextTick()
+    refInputTextString.value?.focus()
+    message.success(response?.message || '已根据 Excel 生成排版模板文字')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Excel 解析失败'
+    message.warning(errorMessage)
+  } finally {
+    excelQuickImportLoading.value = false
+    input.value = ''
+  }
 }
 
 const handleRemoveAttachment = (index: number) => {
@@ -542,7 +638,7 @@ const promptTextList = ref([
   '打个招呼吧，并告诉我你的名字',
   layoutGenerateQuestionTemplate,
   inventoryQuestionTemplate,
-  remainderQuestionTemplate,
+  remainderQuestionTemplate
   // orderQuestionTemplate
 ])
 
@@ -572,6 +668,14 @@ const promptTextList = ref([
             @click="openOrderImportDialog"
           >
             导入订单
+          </n-button>
+          <n-button
+            secondary
+            type="primary"
+            class="chat-sidebar__inventory-button"
+            @click="openInventoryDialog"
+          >
+            库存（原片/余料）
           </n-button>
         </div>
       </div>
@@ -606,6 +710,13 @@ const promptTextList = ref([
       multiple
       hidden
       @change="handleUploadFile"
+    >
+    <input
+      ref="refExcelImportInput"
+      type="file"
+      accept=".xlsx,.xls"
+      hidden
+      @change="handleExcelQuickImport"
     >
     <!-- 内容区域 -->
     <div
@@ -733,7 +844,7 @@ const promptTextList = ref([
                 v-if="stylizingLoading"
                 class="chat-message-card chat-message-card--assistant"
               >
-                <div class="chat-message-card__label">
+                <div class="chat-message-card__label chat-message-card__label--assistant">
                   {{ assistantIdentityLabel }}
                 </div>
                 <MarkdownPreview
@@ -785,6 +896,86 @@ const promptTextList = ref([
             </div>
 
             <div class="chat-composer__input-wrapper">
+              <n-popover
+                v-model:show="composerActionVisible"
+                trigger="click"
+                placement="top-start"
+                :show-arrow="false"
+                :theme-overrides="{
+                  boxShadow: 'none'
+                }"
+                content-class="chat-composer-action-popover"
+                raw
+              >
+                <template #trigger>
+                  <button
+                    type="button"
+                    class="chat-plus-button"
+                    :title="excelQuickImportLoading ? '正在解析 Excel...' : '添加内容'"
+                    :aria-label="excelQuickImportLoading ? '正在解析 Excel...' : '添加内容'"
+                    :disabled="excelQuickImportLoading"
+                  >
+                    <div
+                      v-if="excelQuickImportLoading"
+                      class="chat-plus-button__loading"
+                    ></div>
+                    <div v-else>+</div>
+                  </button>
+                </template>
+                <div class="chat-composer-action-panel">
+                  <button
+                    type="button"
+                    class="chat-composer-action-panel__item"
+                    :disabled="excelQuickImportLoading"
+                    @click="handleOpenExcelQuickImport"
+                  >
+                    <span class="chat-composer-action-panel__icon chat-composer-action-panel__icon--import">
+                      <svg
+                        viewBox="0 0 1024 1024"
+                        aria-hidden="true"
+                        class="chat-composer-action-panel__icon-svg"
+                      >
+                        <use xlink:href="#iconImport" />
+                      </svg>
+                    </span>
+                    <span>导入订单 Excel</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="chat-composer-action-panel__item"
+                    :disabled="excelQuickImportLoading"
+                    @click="handleDownloadExcelTemplate"
+                  >
+                    <span class="chat-composer-action-panel__icon chat-composer-action-panel__icon--template">
+                      <svg
+                        viewBox="0 0 1024 1024"
+                        aria-hidden="true"
+                        class="chat-composer-action-panel__icon-svg"
+                      >
+                        <use xlink:href="#iconexcel" />
+                      </svg>
+                    </span>
+                    <span>下载 Excel 模板</span>
+                  </button>
+                  <!-- <button
+                    type="button"
+                    class="chat-composer-action-panel__item"
+                    :disabled="excelQuickImportLoading"
+                    @click="handleOpenImageUpload"
+                  >
+                    <span class="chat-composer-action-panel__icon chat-composer-action-panel__icon--image">
+                      <svg
+                        viewBox="0 0 1024 1024"
+                        aria-hidden="true"
+                        class="chat-composer-action-panel__icon-svg"
+                      >
+                        <use xlink:href="#iconupload" />
+                      </svg>
+                    </span>
+                    <span>上传订单图片</span>
+                  </button> -->
+                </div>
+              </n-popover>
               <n-input
                 ref="refInputTextString"
                 v-model:value="inputTextString"
@@ -792,12 +983,12 @@ const promptTextList = ref([
                 autofocus
                 :autosize="{
                   minRows: 3,
-                  maxRows: 10,
+                  maxRows: 10
                 }"
                 class="chat-textarea textarea-resize-none text-15"
                 :style="{
                   '--n-border-radius': '24px',
-                  '--n-padding-left': '20px',
+                  '--n-padding-left': '76px',
                   '--n-padding-right': '84px',
                   '--n-padding-vertical': '14px',
                 }"
@@ -869,6 +1060,7 @@ const promptTextList = ref([
       v-model:show="orderImportDialogVisible"
       @import="handleImportOrders"
     />
+    <InventoryDialog v-model:show="inventoryDialogVisible" />
   </LayoutCenterPanel>
 </template>
 
@@ -960,6 +1152,17 @@ const promptTextList = ref([
   box-shadow: 0 8px 18px rgb(67 88 143 / 6%);
 }
 
+.chat-sidebar__inventory-button {
+  --n-border-radius: 16px;
+  --n-height: 42px;
+
+  border-color: rgb(154 174 232 / 20%);
+  background: linear-gradient(180deg, rgb(246 250 255 / 88%), rgb(255 255 255 / 78%));
+  box-shadow:
+    0 8px 18px rgb(67 88 143 / 6%),
+    inset 0 1px 0 rgb(255 255 255 / 66%);
+}
+
 .chat-rename-dialog__footer {
   width: 100%;
 }
@@ -1014,7 +1217,8 @@ const promptTextList = ref([
 .chat-workspace__body {
   position: relative;
   z-index: 1;
-  padding: 12px 18px 10px;
+  // padding: 12px 18px 10px;
+  padding: 0;
 }
 
 .chat-workspace__footer {
@@ -1178,6 +1382,15 @@ const promptTextList = ref([
   color: #5f7291;
 }
 
+.chat-message-card__label--assistant::before {
+  /* 助手标签使用冷蓝发光点，和当前产品的轻科技玻璃风更一致。 */
+  background: radial-gradient(circle at 35% 35%, #dff2ff 0%, #7fb4ff 38%, #4e7ff2 100%);
+  box-shadow:
+    0 0 0 3px rgb(123 173 255 / 14%),
+    0 0 12px rgb(92 136 245 / 28%);
+  opacity: 1;
+}
+
 .chat-composer {
   width: 100%;
   display: flex;
@@ -1242,6 +1455,103 @@ const promptTextList = ref([
   position: relative;
 }
 
+:deep(.chat-composer-action-popover) {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+:deep(.n-popover:has(.chat-composer-action-panel)) {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 18px !important;
+}
+
+:deep(.n-popover-shared:has(.chat-composer-action-panel)) {
+  box-shadow: none !important;
+  border-radius: 18px !important;
+}
+
+.chat-composer-action-panel {
+  display: flex;
+  min-width: 168px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgb(157 176 225 / 16%);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 94%), rgb(247 250 255 / 92%)),
+    radial-gradient(circle at top left, rgb(255 255 255 / 82%), transparent 42%);
+  box-shadow:
+    0 18px 38px rgb(44 64 116 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 84%);
+  backdrop-filter: blur(18px);
+}
+
+.chat-composer-action-panel__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #29405f;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgb(94 123 221 / 8%);
+    color: #243756;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+  }
+}
+
+.chat-composer-action-panel__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 80%), rgb(242 246 255 / 88%)),
+    radial-gradient(circle at top left, rgb(255 255 255 / 82%), transparent 46%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 88%),
+    0 6px 14px rgb(86 108 168 / 8%);
+  color: #5470ba;
+}
+
+.chat-composer-action-panel__icon-svg {
+  width: 16px;
+  height: 16px;
+  fill: currentcolor;
+}
+
+.chat-composer-action-panel__icon--import {
+  color: #5d74c8;
+}
+
+.chat-composer-action-panel__icon--template {
+  color: #3f9d7a;
+}
+
+.chat-composer-action-panel__icon--image {
+  color: #6682c7;
+}
+
 .chat-textarea {
 
   :deep(.n-input-wrapper) {
@@ -1264,6 +1574,52 @@ const promptTextList = ref([
     color: #24334d;
     line-height: 1.9;
   }
+}
+
+.chat-plus-button {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgb(154 174 232 / 18%);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 88%), rgb(245 248 255 / 84%)),
+    radial-gradient(circle at top left, rgb(255 255 255 / 76%), transparent 42%);
+  box-shadow:
+    0 12px 24px rgb(67 88 143 / 9%),
+    inset 0 1px 0 rgb(255 255 255 / 82%);
+  color: #5c73b8;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+      0 14px 26px rgb(67 88 143 / 12%),
+      inset 0 1px 0 rgb(255 255 255 / 86%);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+  }
+}
+
+.chat-plus-button__loading {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgb(92 115 184 / 16%);
+  border-top-color: currentcolor;
+  border-radius: 999px;
+  animation: chat-plus-button-spin 0.8s linear infinite;
 }
 
 .chat-send-button {
@@ -1308,6 +1664,16 @@ const promptTextList = ref([
   border-radius: 4px;
   background: currentcolor;
   box-shadow: 0 0 0 4px rgb(255 255 255 / 10%);
+}
+
+@keyframes chat-plus-button-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (width <= 960px) {

@@ -15,6 +15,13 @@ export type LayoutPromptOrderItem = {
   isNew?: boolean | string
   edging?: LayoutEdgingValue
   orderNumber?: string
+  productName?: string
+  selfCode?: string
+  flowCardNumber?: string
+  rackNumber?: string
+  processingRequirements?: string
+  specialCraft?: string
+  remark?: string
   orderSpecId?: string | number
   uniqueIndex?: string
 }
@@ -47,6 +54,9 @@ export type CloudOptimizationOrderSourceItem = {
   productName?: string
   glassName?: string
   pieceName?: string
+  selfCode?: string
+  flowCardNumber?: string
+  rackNumber?: string
   width?: number | string
   height?: number | string
   unPlateQuantity?: number | string
@@ -56,6 +66,9 @@ export type CloudOptimizationOrderSourceItem = {
   thickness?: number | string
   productEdgingConfig?: LayoutEdgingValue
   productEdgingName?: string
+  processingRequirements?: string
+  specialCraft?: string
+  remark?: string
   orderNumber?: string
   orderSpecId?: string | number
   uniqueIndex?: string
@@ -92,6 +105,16 @@ const formatPrimitiveValue = (value: unknown, fallback = '0') => {
   return text || fallback
 }
 
+const formatOptionalText = (value: unknown) => String(value ?? '').trim()
+
+const hasValidEdgingConfig = (value?: LayoutEdgingValue) => {
+  if (!value || typeof value === 'string') return false
+  return ['leftValue', 'rightValue', 'topValue', 'downValue'].every((key) => {
+    const currentValue = value[key as keyof typeof value]
+    return currentValue === '' || currentValue === undefined || Number.isFinite(Number(currentValue))
+  })
+}
+
 const formatEdgingValue = (value?: LayoutEdgingValue) => {
   if (!value) return '0|0|0|0'
   if (typeof value === 'string') {
@@ -108,7 +131,7 @@ const formatEdgingValue = (value?: LayoutEdgingValue) => {
 }
 
 const getSourceEdgingValue = (configValue?: LayoutEdgingValue, textValue?: string) => {
-  if (configValue) return formatEdgingValue(configValue)
+  if (hasValidEdgingConfig(configValue)) return formatEdgingValue(configValue)
   return formatEdgingValue(textValue)
 }
 
@@ -149,8 +172,16 @@ const buildOrderBlock = (item: LayoutPromptOrderItem) => {
     `  品类：${ formatPrimitiveValue(item.glassType, '-') }`,
     `  厚度：${ item.thickness === null || item.thickness === undefined || String(item.thickness).trim() === '' ? '-' : `${ String(item.thickness).trim() }mm` }`,
     `  是否新增：${ formatIsNew(item.isNew) }`,
-    `  磨边：${ formatEdgingValue(item.edging) }`
-  ].join('\n')
+    `  磨边：${ formatEdgingValue(item.edging) }`,
+    formatOptionalText(item.orderNumber) ? `  订单编号：${ formatOptionalText(item.orderNumber) }` : '',
+    formatOptionalText(item.productName) ? `  产品名称：${ formatOptionalText(item.productName) }` : '',
+    formatOptionalText(item.selfCode) ? `  自编号：${ formatOptionalText(item.selfCode) }` : '',
+    formatOptionalText(item.flowCardNumber) ? `  流程卡号：${ formatOptionalText(item.flowCardNumber) }` : '',
+    formatOptionalText(item.rackNumber) ? `  架号：${ formatOptionalText(item.rackNumber) }` : '',
+    formatOptionalText(item.processingRequirements) ? `  加工要求：${ formatOptionalText(item.processingRequirements) }` : '',
+    formatOptionalText(item.specialCraft) ? `  特殊工艺：${ formatOptionalText(item.specialCraft) }` : '',
+    formatOptionalText(item.remark) ? `  备注：${ formatOptionalText(item.remark) }` : ''
+  ].filter(Boolean).join('\n')
 }
 
 const buildStockBlock = (item: LayoutPromptStockItem) => {
@@ -190,6 +221,13 @@ export const mapCloudOptimizationOrderToLayoutPromptItem = (
     isNew: false,
     edging: getSourceEdgingValue(item.productEdgingConfig, item.productEdgingName),
     orderNumber: item.orderNumber || '',
+    productName: item.productName || '',
+    selfCode: item.selfCode || '',
+    flowCardNumber: item.flowCardNumber || '',
+    rackNumber: item.rackNumber || '',
+    processingRequirements: item.processingRequirements || '',
+    specialCraft: item.specialCraft || '',
+    remark: item.remark || '',
     orderSpecId: item.orderSpecId,
     uniqueIndex: item.uniqueIndex || ''
   }
@@ -243,7 +281,7 @@ export const buildLayoutGenerateQuestionTemplate = ({
 
   const stockText = stocks.length
     ? stocks.map(buildStockBlock).join('\n\n')
-    : '当前消息暂未附带原片库存明细。请先结合本地原片库存与余料库存数据，按照成品订单的品类、厚度、规格进行初步筛选，优先判断可直接利用的余料，其次推荐适合的原片规格，并在进入正式排版前说明选料依据、备料建议与预估利用方向。'
+    : '请先结合本地原片库存与余料库存数据，按照成品订单的品类、厚度、规格进行初步筛选，优先判断可直接利用的余料，其次推荐适合的原片规格，并在进入正式排版前说明选料依据、备料建议与预估利用方向。'
 
   const minCutRate = requirements.minCutRate ?? '不限制'
   const breakDistance = requirements.breakDistance ?? 0

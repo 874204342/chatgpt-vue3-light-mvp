@@ -74,6 +74,22 @@ export const imageFileToDataUrl = (file: File, maxWidth = 1280, quality = 0.85):
   })
 }
 
+/**
+ * 读取文件为 base64 字符串，便于以 JSON 方式上传到本地解析服务。
+ */
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      const [, base64 = ''] = result.split(',')
+      resolve(base64)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 
 /**
  * 将文本中的非法文件名字符替换为 '-'，并在末尾追加或替换为 .txt 后缀

@@ -1,5 +1,6 @@
 import 'virtual:uno.css'
 
+import '@/assets/fonts'
 import { setupRouter } from '@/router'
 import { setupStore } from '@/store'
 

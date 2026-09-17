@@ -1,6 +1,7 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { registerChatRoutes } from './routes/chat.js'
+import { registerInventoryRoutes } from './routes/inventory.js'
 import { registerOrderImportRoutes } from './routes/order-import.js'
 import { serverConfig } from './config.js'
 
@@ -17,6 +18,7 @@ const bootstrap = async () => {
   })
 
   await registerChatRoutes(app)
+  await registerInventoryRoutes(app)
   await registerOrderImportRoutes(app)
 
   try {

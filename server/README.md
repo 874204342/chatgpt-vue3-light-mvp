@@ -69,6 +69,15 @@ LOCAL_AI_SERVER_PORT=3001
 
 当前版本还内置了天气查询能力：当用户问题命中天气类关键词时，服务端会调用 Open-Meteo 免费接口（无需 API Key）查询实时天气与未来三天预报，并以 system message 注入给模型。
 
+当前版本也已支持订单 Excel 导入预解析：
+
+- `GET /api/order-import/template`：下载 `server\src\excelTemplate\需切成品模板.xlsx`
+- `POST /api/order-import/upload-preview`：上传 Excel 的 base64 内容，返回有效订单、异常行与汇总信息
+- `POST /api/order-import/list`：查询本地 mock 订单
+- `POST /api/order-import/category-summary`：查询本地 mock 订单的品类与厚度汇总
+
+Excel 导入链路默认会先做字段识别、规格解析、数量校验、异常行提示与重复规格合并，确认有效数据后再进入前端现有的排版生成流程。当前已兼容模板中的 `自编号`、`流程卡号`、`架号`、`加工要求`、`备注`、`特殊工艺` 与业务文本型 `磨边等级`。
+
 首次拉起前，请确认执行过：
 
 ```powershell

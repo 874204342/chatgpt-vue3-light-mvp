@@ -4,7 +4,7 @@
 @use "nprogress/nprogress.css";
 
 body {
-  width: 100vw;
+  width: 100%;
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizelegibility;
@@ -17,19 +17,20 @@ body {
 html {
   font-size: 14px;
   box-sizing: border-box;
-  overflow-y: scroll;
+  overflow: hidden;
   -webkit-tap-highlight-color: rgb(255 255 255 / 0%);
 }
 
 :root {
-  overflow: hidden auto;
+  overflow: hidden;
 }
 
 :root body {
   margin: 0;
   padding: 0;
   height: 100%;
-  position: absolute;
+  overflow: hidden;
+  position: relative;
 }
 
 #app,

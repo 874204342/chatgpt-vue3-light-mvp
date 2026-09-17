@@ -1,4 +1,5 @@
 <script lang="tsx" setup>
+import brandLogoUrl from '@/assets/images/logo_AI.png'
 import { systemTitle } from '@/base'
 
 interface Props {
@@ -36,7 +37,11 @@ withDefaults(
         cursor-pointer
       >
         <div class="brand-mark">
-          <span class="brand-mark__core"></span>
+          <img
+            class="brand-mark__avatar"
+            :src="brandLogoUrl"
+            alt="品牌 Logo"
+          >
         </div>
         <div class="brand-copy">
           <div class="brand-title">{{ systemTitle }}</div>
@@ -124,40 +129,40 @@ withDefaults(
 
 .brand-mark {
   position: relative;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 1px;
+  overflow: hidden;
+  border-radius: 14px;
   background:
-    linear-gradient(135deg, rgb(103 134 255 / 24%), rgb(69 209 255 / 18%));
-  border: 1px solid rgb(124 149 255 / 20%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 75%);
+    linear-gradient(135deg, rgb(112 140 255 / 28%), rgb(68 210 255 / 18%));
+  border: 1px solid rgb(136 160 255 / 28%);
+  box-shadow:
+    0 10px 24px rgb(49 69 122 / 12%),
+    inset 0 1px 0 rgb(255 255 255 / 76%);
 
-  &::before,
   &::after {
     position: absolute;
+    inset: 1px;
     content: '';
-    inset: 10px;
-    border-radius: 10px;
-    border: 1px solid rgb(105 132 255 / 22%);
-  }
-
-  &::after {
-    inset: 16px;
-    border-radius: 999px;
-    border-color: rgb(75 204 242 / 36%);
+    border-radius: 13px;
+    border: 1px solid rgb(255 255 255 / 26%);
+    pointer-events: none;
   }
 }
 
-.brand-mark__core {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #5f7cff 0%, #47d4ff 100%);
-  box-shadow: 0 0 0 6px rgb(95 124 255 / 10%);
-  transform: translate(-50%, -50%);
+.brand-mark__avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  // 这张 Logo 原图留白偏多，轻微放大能让头像在容器里更饱满。
+  transform: scale(1.14);
+  filter: saturate(1.05) contrast(1.04);
 }
 
 .brand-copy {

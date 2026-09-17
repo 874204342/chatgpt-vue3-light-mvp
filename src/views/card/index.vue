@@ -105,6 +105,8 @@ const TEXT_COLOR = '#000000'
 const DISPLAY_WIDTH = 720
 const EXPORT_WIDTH = 2400
 const PLATE_PADDING = 42
+// 仅用于预览画布，增加左右留白，不改变原片本体的绘制尺寸。
+const DISPLAY_CANVAS_SIDE_GUTTER = 72
 const PLATE_HEADER_HEIGHT = 88
 const DISPLAY_REFERENCE_PLATE_WIDTH = 2440
 const DISPLAY_REFERENCE_PLATE_HEIGHT = 1830
@@ -268,18 +270,20 @@ function drawPlate(
   plate: SpecPlateArea,
   scale: number,
   options: {
+    canvasSideGutter?: number
     lineWidth?: number
     title?: PlateTitle
   } = {}
 ) {
   const lineWidth = options.lineWidth ?? 1
+  const canvasSideGutter = options.canvasSideGutter ?? 0
   const width = Math.round(plate.Width * scale)
   const height = Math.round(plate.Height * scale)
   const padding = PLATE_PADDING
   const headerHeight = options.title ? PLATE_HEADER_HEIGHT : 0
-  const canvasWidth = width + padding * 2
+  const canvasWidth = width + padding * 2 + canvasSideGutter * 2
   const canvasHeight = height + padding * 2 + headerHeight
-  const plateX = padding
+  const plateX = padding + canvasSideGutter
   const plateY = padding + headerHeight
 
   ctx.fillStyle = BACKGROUND_COLOR
@@ -372,7 +376,7 @@ function drawPlate(
   ctx.fillText(`${ plate.Width }mm`, plateX + width / 2, plateY + height + padding / 3)
 
   ctx.save()
-  ctx.translate(padding / 2, plateY + height / 2)
+  ctx.translate(plateX / 2, plateY + height / 2)
   ctx.rotate(-Math.PI / 2)
   ctx.textBaseline = 'middle'
   ctx.fillText(`${ plate.Height }mm`, 0, 0)
@@ -385,13 +389,14 @@ function renderActivePlate() {
   if (!canvas || !group) return
 
   const scale = getDisplayScale(group.plate)
-  canvas.width = Math.round(group.plate.Width * scale) + PLATE_PADDING * 2
+  canvas.width = Math.round(group.plate.Width * scale) + PLATE_PADDING * 2 + DISPLAY_CANVAS_SIDE_GUTTER * 2
   canvas.height = Math.round(group.plate.Height * scale) + PLATE_PADDING * 2 + PLATE_HEADER_HEIGHT
 
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
   drawPlate(ctx, group.plate, scale, {
+    canvasSideGutter: DISPLAY_CANVAS_SIDE_GUTTER,
     title: getPlateTitle(group)
   })
 }
@@ -892,11 +897,11 @@ watch(activeScheme, () => {
     }
 
     &--prev {
-      left: -6px;
+      left: 16px;
     }
 
     &--next {
-      right: -6px;
+      right: 16px;
     }
   }
 

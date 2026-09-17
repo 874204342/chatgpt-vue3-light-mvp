@@ -64,11 +64,12 @@ const LAYOUT_ANALYSIS_SYSTEM_PROMPT = [
   '5. 最终推荐方案时，优先兼顾余料消化、综合利用率、备料合理性与执行稳定性。',
   '',
   '【输出要求】',
-  '请使用简洁、专业的中文进行回复，优先说明：',
-  '1. 候选方案 A/B/C 的选料逻辑，以及各自适合的业务侧重点。',
-  '2. 最佳方案为什么胜出，包括综合利用率、余料使用情况、原片备料情况与执行建议。',
-  '3. 还应保留哪些备选方案供客户选择，以及这些方案的取舍点。',
-  '4. 如存在库存不足、规格冲突、余料不适配或需要补充确认的信息，请明确指出。',
+  '请使用简洁、专业的中文进行回复，并严格拆成 4 个独立模块，不要写成长段落，也不要输出编号列表：',
+  '1. 推荐方案：标题中写明“推荐方案 X”与方案名称，并明确给出综合利用率。',
+  '2. 方案优势：用 2 条以内短句概括排版稳定性、订单适配度或执行效率。',
+  '3. 风险预警：如存在库存不足、规格冲突、余料不适配或需要补料，单独说明并尽量给出“需求数量 / 可用库存”对比；若无明显风险，也要明确写“当前未发现明显执行风险”。',
+  '4. 备选方案说明：概括其他候选方案的适用场景、未被优先推荐的原因，以及必要的执行建议。',
+  '各模块标题请尽量使用“推荐方案 / 方案优势 / 风险预警 / 备选方案说明”这四类表述，方便前端进行模块化呈现。',
   '如果系统消息已经明确说明参数缺失、本地数据缺失或工具调用失败，请严格依据系统消息如实告知用户，不要补充未经验证的数据。'
 ].join('\n')
 
@@ -200,6 +201,10 @@ const extractOrderNumber = (text: string) => {
 
   const standaloneMatch = text.match(/(?:^|[^A-Z0-9_-])(D\d{6,}[A-Z0-9_-]*)(?=$|[^A-Z0-9_-])/i)
   return standaloneMatch?.[1]?.toUpperCase()
+}
+
+const hasStructuredLayoutPayload = (text: string) => {
+  return /【成品订单】|规格：|数量：|品类：|厚度：|磨边：/m.test(text)
 }
 
 const insertBeforeLastUserMessage = (messages: ChatMessage[], message: ChatMessage) => {
@@ -925,7 +930,8 @@ export const resolveLayoutMessages = async (
 
   const lastUserText = extractLastUserText(messages)
   const orderNumber = extractOrderNumber(lastUserText)
-  const responseMessages: ChatMessage[] = orderNumber
+  const shouldResolveByOrderNumber = Boolean(orderNumber && !hasStructuredLayoutPayload(lastUserText))
+  const responseMessages: ChatMessage[] = shouldResolveByOrderNumber
     ? [{
       role: 'user',
       content: lastUserText
@@ -936,7 +942,7 @@ export const resolveLayoutMessages = async (
   try {
     const userText = extractLayoutConversation(messages)
 
-    if (orderNumber) {
+    if (shouldResolveByOrderNumber && orderNumber) {
       return {
         messages: [
           ...layoutPromptMessages,
@@ -1002,7 +1008,8 @@ export const resolveLayoutMessages = async (
           content: [
             '系统已基于本地原片与余料库存，先完成候选方案筛选，再对多种方案进行了真实排版试算。',
             '下方排版图卡片会默认选中综合评分最高的最佳方案，并支持切换查看其他已成功试排的候选方案。',
-            '你只负责基于以下摘要，用 4～6 条简短、易懂的要点解释为什么推荐该方案，并概括备选方案差异。',
+            '你只负责基于以下摘要生成最终说明，必须拆成“推荐方案 / 方案优势 / 风险预警 / 备选方案说明”4 个模块，每个模块单独成段，不要输出编号列表。',
+            '推荐方案模块需突出综合利用率；风险预警模块若存在库存缺口，请明确写出需求数量与可用库存数量。',
             '禁止输出、尝试生成或描述任何图片、SVG、Mermaid、ASCII 图、坐标点位、HTML 表格或原始 JSON。',
             '如需提及图，请明确说明“系统已在下方展示多方案排版图，并默认选中最佳方案”。',
             schemeSummary,

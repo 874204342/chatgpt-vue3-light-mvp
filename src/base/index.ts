@@ -1,1 +1,1 @@
-export const systemTitle = '聚玻AI数字员工'
+export const systemTitle = '聚玻・棱弈'
