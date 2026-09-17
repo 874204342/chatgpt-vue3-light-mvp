@@ -395,28 +395,32 @@ const layoutProgressMeta = computed(() => {
 
   if (progressText.includes('订单') && progressText.includes('库存')) {
     return {
-      title: '正在同步业务数据',
-      caption: '系统正在读取订单规格与可用原片库存，请稍候片刻。'
+      title: '正在核对订单与库存',
+      caption: '已收到本次排版需求，正在匹配符合条件的库存原片。',
+      detail: '正在提取订单品类、厚度与规格信息，并完成库存预筛。'
     }
   }
 
   if (progressText.includes('整理') || progressText.includes('解析')) {
     return {
-      title: '正在整理排版参数',
-      caption: '系统正在校验成品尺寸、数量与原片信息，准备进入计算阶段。'
+      title: '正在整理排版条件',
+      caption: '正在校验订单规格、数量与材质信息，即将进入方案计算。',
+      detail: '正在梳理订单规格、材质分组与可用排版参数。'
     }
   }
 
   if (progressText.includes('计算') || progressText.includes('排版')) {
     return {
-      title: '正在生成最优方案',
-      caption: '系统正在调用排版算法，综合评估利用率与裁切方案。'
+      title: '正在评估排版方案',
+      caption: '正在比对候选原片组合与利用率，稍后返回推荐结果。',
+      detail: '正在计算多组候选方案，并综合评估利用率与备料合理性。'
     }
   }
 
   return {
-    title: '正在处理中',
-    caption: '系统正在调用业务能力生成结果，请稍候。'
+    title: '正在为您处理',
+    caption: '系统正在生成业务结果，请稍候。',
+    detail: progressText || '正在执行排版分析流程。'
   }
 })
 </script>
@@ -488,7 +492,7 @@ const layoutProgressMeta = computed(() => {
               aria-hidden="true"
             ></div>
             <div class="layout-progress-panel__badge">
-              智能处理中
+              排版服务处理中
             </div>
             <div class="layout-progress-panel__icon">
               <n-icon class="text-28">
@@ -506,7 +510,7 @@ const layoutProgressMeta = computed(() => {
               text-center
               class="layout-progress-panel__detail"
             >
-              {{ layoutProgress }}
+              {{ layoutProgressMeta.detail }}
             </div>
           </div>
           <n-empty

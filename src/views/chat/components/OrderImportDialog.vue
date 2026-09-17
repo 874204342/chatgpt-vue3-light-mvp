@@ -72,18 +72,77 @@ const searchForm = reactive(createSearchForm())
 const rowKey = (row: OrderImportRow) => row.uniqueIndex || `${ row.orderNumber || '' }-${ row.glassName || '' }-${ row.createTime || '' }`
 
 const columns: DataTableColumns<OrderImportRow> = [
-  { type: 'selection', multiple: true },
-  { title: '品类', key: 'categoryName', width: 100 },
-  { title: '厚度', key: 'thickness', width: 90 },
-  { title: '订单编号', key: 'orderNumber', width: 150 },
-  { title: '客户名称', key: 'customerName', width: 140, ellipsis: { tooltip: true } },
-  { title: '项目名称', key: 'projectName', width: 160, ellipsis: { tooltip: true } },
-  { title: '楼层编号', key: 'floorNumber', width: 110 },
-  { title: '产品名称', key: 'productName', width: 140, ellipsis: { tooltip: true } },
-  { title: '单片名称', key: 'glassName', width: 140, ellipsis: { tooltip: true } },
-  { title: '未优化数量', key: 'unPlateQuantity', width: 110 },
-  { title: '未优化面积', key: 'area', width: 110 },
-  { title: '制单时间', key: 'createTime', width: 170 }
+  {
+    type: 'selection',
+    multiple: true
+  },
+  {
+    title: '品类',
+    key: 'categoryName',
+    width: 100
+  },
+  {
+    title: '厚度',
+    key: 'thickness',
+    width: 90
+  },
+  {
+    title: '订单编号',
+    key: 'orderNumber',
+    width: 150
+  },
+  {
+    title: '客户名称',
+    key: 'customerName',
+    width: 140,
+    ellipsis: {
+      tooltip: true
+    }
+  },
+  {
+    title: '项目名称',
+    key: 'projectName',
+    width: 160,
+    ellipsis: {
+      tooltip: true
+    }
+  },
+  {
+    title: '楼层编号',
+    key: 'floorNumber',
+    width: 110
+  },
+  {
+    title: '产品名称',
+    key: 'productName',
+    width: 140,
+    ellipsis: {
+      tooltip: true
+    }
+  },
+  {
+    title: '单片名称',
+    key: 'glassName',
+    width: 140,
+    ellipsis: {
+      tooltip: true
+    }
+  },
+  {
+    title: '未优化数量',
+    key: 'unPlateQuantity',
+    width: 110
+  },
+  {
+    title: '未优化面积',
+    key: 'area',
+    width: 110
+  },
+  {
+    title: '制单时间',
+    key: 'createTime',
+    width: 170
+  }
 ]
 
 const categoryOptions = computed(() => {
@@ -195,6 +254,10 @@ const fetchOrderList = async () => {
     }
     tableData.value = response?.data?.list || []
     total.value = Number(response?.data?.total || 0)
+    // 当前订单导入已切换为本地 mock 数据源；无数据时直接明确提示，避免用户误以为仍依赖登录态。
+    if (!tableData.value.length) {
+      message.info(response?.message || '当前暂无可导入的本地订单数据')
+    }
     syncCheckedRowKeys()
   } finally {
     loading.value = false
@@ -274,17 +337,26 @@ watch(
 
 <template>
   <n-modal
+    class="order-import-modal"
     :show="show"
     preset="card"
     title="导入订单"
-    style="width: 1200px;"
+    style="width: min(1200px, calc(100vw - 32px));"
     :bordered="false"
     :segmented="{ content: true }"
     @update:show="emit('update:show', $event)"
   >
-    <n-space vertical :size="16">
-      <n-space align="end" wrap>
-        <n-form-item label="制单日期" style="width: 280px;">
+    <div class="order-import-dialog">
+      <n-space
+        class="order-import-dialog__filters"
+        align="end"
+        wrap
+        :size="12"
+      >
+        <n-form-item
+          label="制单日期"
+          style="width: 280px;"
+        >
           <n-date-picker
             v-model:value="searchForm.createDateRange"
             type="daterange"
@@ -292,7 +364,10 @@ watch(
             style="width: 100%;"
           />
         </n-form-item>
-        <n-form-item label="交货日期" style="width: 280px;">
+        <n-form-item
+          label="交货日期"
+          style="width: 280px;"
+        >
           <n-date-picker
             v-model:value="searchForm.sendDateRange"
             type="daterange"
@@ -300,22 +375,55 @@ watch(
             style="width: 100%;"
           />
         </n-form-item>
-        <n-form-item label="订单编号" style="width: 220px;">
-          <n-input v-model:value="searchForm.orderNumber" placeholder="请输入订单编号" />
+        <n-form-item
+          label="订单编号"
+          style="width: 220px;"
+        >
+          <n-input
+            v-model:value="searchForm.orderNumber"
+            placeholder="请输入订单编号"
+          />
         </n-form-item>
-        <n-form-item label="客户名称" style="width: 220px;">
-          <n-input v-model:value="searchForm.customerName" placeholder="请输入客户名称" />
+        <n-form-item
+          label="客户名称"
+          style="width: 220px;"
+        >
+          <n-input
+            v-model:value="searchForm.customerName"
+            placeholder="请输入客户名称"
+          />
         </n-form-item>
-        <n-form-item label="项目名称" style="width: 220px;">
-          <n-input v-model:value="searchForm.projectName" placeholder="请输入项目名称" />
+        <n-form-item
+          label="项目名称"
+          style="width: 220px;"
+        >
+          <n-input
+            v-model:value="searchForm.projectName"
+            placeholder="请输入项目名称"
+          />
         </n-form-item>
-        <n-form-item label="楼层编号" style="width: 220px;">
-          <n-input v-model:value="searchForm.floorNumber" placeholder="请输入楼层编号" />
+        <n-form-item
+          label="楼层编号"
+          style="width: 220px;"
+        >
+          <n-input
+            v-model:value="searchForm.floorNumber"
+            placeholder="请输入楼层编号"
+          />
         </n-form-item>
-        <n-form-item label="单片名称" style="width: 220px;">
-          <n-input v-model:value="searchForm.glassName" placeholder="请输入单片名称" />
+        <n-form-item
+          label="单片名称"
+          style="width: 220px;"
+        >
+          <n-input
+            v-model:value="searchForm.glassName"
+            placeholder="请输入单片名称"
+          />
         </n-form-item>
-        <n-form-item label="品类" style="width: 180px;">
+        <n-form-item
+          label="品类"
+          style="width: 180px;"
+        >
           <n-select
             v-model:value="searchForm.categoryName"
             :options="categoryOptions"
@@ -325,7 +433,10 @@ watch(
             @update:value="handleCategoryChange"
           />
         </n-form-item>
-        <n-form-item label="厚度" style="width: 160px;">
+        <n-form-item
+          label="厚度"
+          style="width: 160px;"
+        >
           <n-select
             v-model:value="searchForm.thickness"
             :options="thicknessOptions"
@@ -335,14 +446,22 @@ watch(
           />
         </n-form-item>
         <n-space>
-          <n-button type="primary" @click="handleSearch">查询</n-button>
-          <n-button @click="resetFilters">重置</n-button>
+          <n-button
+            type="primary"
+            @click="handleSearch"
+          >
+            查询
+          </n-button>
+          <n-button @click="resetFilters">
+            重置
+          </n-button>
         </n-space>
       </n-space>
 
       <n-data-table
+        class="order-import-dialog__table"
         remote
-        max-height="520"
+        max-height="calc(100vh - 360px)"
         :loading="loading"
         :columns="columns"
         :data="tableData"
@@ -350,14 +469,6 @@ watch(
         :checked-row-keys="checkedRowKeys"
         @update:checked-row-keys="handleUpdateCheckedRowKeys"
       />
-
-      <div class="dialog-footer">
-        <span>已选择 {{ selectedCount }} 条订单</span>
-        <n-space>
-          <n-button @click="closeDialog">取消</n-button>
-          <n-button type="primary" @click="handleImport">导入到输入框</n-button>
-        </n-space>
-      </div>
 
       <div class="pagination-wrap">
         <n-pagination
@@ -370,19 +481,66 @@ watch(
           @update:page-size="fetchOrderList"
         />
       </div>
-    </n-space>
+
+      <div class="dialog-footer">
+        <span>已选择 {{ selectedCount }} 条订单</span>
+        <n-space>
+          <n-button @click="closeDialog">
+            取消
+          </n-button>
+          <n-button
+            type="primary"
+            @click="handleImport"
+          >
+            导入到输入框
+          </n-button>
+        </n-space>
+      </div>
+    </div>
   </n-modal>
 </template>
 
 <style scoped lang="scss">
+.order-import-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100vh - 140px);
+}
+
+.order-import-dialog__filters {
+  flex-shrink: 0;
+}
+
+.order-import-dialog__table {
+  flex: 1;
+  min-height: 0;
+}
+
 .dialog-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .pagination-wrap {
   display: flex;
   justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.order-import-modal {
+  :deep(.n-card) {
+    max-height: calc(100vh - 48px);
+  }
+
+  :deep(.n-card__content) {
+    overflow: hidden;
+  }
+
+  :deep(.n-form-item) {
+    margin-bottom: 0;
+  }
 }
 </style>

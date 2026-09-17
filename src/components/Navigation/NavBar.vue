@@ -44,10 +44,9 @@ withDefaults(
         </div>
       </div>
     </div>
-    <div class="flex-1">
+    <div class="header-center">
       <div
-        flex="~ col items-center justify-center"
-        px-36px
+        class="header-center__content"
       >
         <slot name="bottom"></slot>
       </div>
@@ -62,9 +61,12 @@ withDefaults(
 <style lang="scss" scoped>
 
 .navigation-nav-header-container {
-  --at-apply: w-full flex items-center justify-center;
+  --at-apply: w-full items-center justify-center;
   --at-apply: px-12 py-8;
   --at-apply: lt-lg:flex-col;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
 
   border: 1px solid rgb(155 176 255 / 18%);
   border-radius: 24px;
@@ -75,16 +77,31 @@ withDefaults(
   backdrop-filter: blur(18px);
 
   .header-left,
+  .header-center,
   .header-right {
     --at-apply: flex items-center h-full text-16;
   }
 
   .header-left {
     --at-apply: h-50px;
+    justify-self: start;
   }
 
   .header-right {
     --at-apply: flex items-center h-full text-16;
+    justify-self: end;
+  }
+
+  .header-center {
+    justify-self: center;
+    min-width: 0;
+  }
+
+  .header-center__content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 36px;
   }
 }
 

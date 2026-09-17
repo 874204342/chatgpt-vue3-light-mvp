@@ -2,7 +2,6 @@
 import { renderMarkdownText, renderMermaidProcess } from '@/components/MarkdownPreview/plugins/markdown'
 import { type ChatContentPart, type ChatMessage, triggerModelTermination } from '@/components/MarkdownPreview/models'
 import { type InputInst } from 'naive-ui'
-import { useSaasAuth } from '@/composables/useSaasAuth'
 import { useConversationStore } from '@/store/hooks/useConversationStore'
 import { imageFileToDataUrl } from '@/utils/files-tool'
 import OrderImportDialog from '@/views/chat/components/OrderImportDialog.vue'
@@ -21,7 +20,6 @@ const route = useRoute()
 const router = useRouter()
 const businessStore = useBusinessStore()
 const conversationStore = useConversationStore()
-const { authenticated, initialized, getStatus } = useSaasAuth()
 
 const AUTO_PROMPT_QUERY_KEY = 'prompt'
 const AUTO_PROMPT_BASE64_QUERY_KEY = 'promptBase64'
@@ -156,6 +154,7 @@ const handleCreateStylized = async () => {
     const partialAnswerText = refReaderMarkdownPreview.value?.getDisplayText?.() || ''
     refReaderMarkdownPreview.value.abortReader()
     onCompletedReader(partialAnswerText)
+    message.info('已中断当前回答')
     return
   }
 
@@ -235,7 +234,7 @@ const handleImportOrders = async (rows: any[]) => {
   })
   await nextTick()
   refInputTextString.value?.focus()
-  message.success('已将订单分析文本填入输入框，可继续修改后再发送')
+  // message.success('已将订单分析文本填入输入框，可继续修改后再发送')
 }
 
 const getQueryValue = (value: unknown) => {
@@ -288,7 +287,7 @@ const consumeRoutePrompt = async () => {
 
 const placeholder = computed(() => {
   if (stylizingLoading.value) {
-    return `输入任意问题...`
+    return '正在生成中，可点击右下角按钮中断当前回答...'
   }
   return '输入任意问题，按 Enter 发送，Shift + Enter 换行...'
 })
@@ -471,9 +470,6 @@ onMounted(() => {
     businessStore.systemModelName = currentConversation.model
   }
   handleResetState()
-  if (!initialized.value) {
-    getStatus().catch(() => {})
-  }
   consumeRoutePrompt()
 })
 
@@ -547,7 +543,7 @@ const promptTextList = ref([
   layoutGenerateQuestionTemplate,
   inventoryQuestionTemplate,
   remainderQuestionTemplate,
-  orderQuestionTemplate
+  // orderQuestionTemplate
 ])
 
 
@@ -570,7 +566,6 @@ const promptTextList = ref([
             新对话
           </n-button>
           <n-button
-            v-if="authenticated"
             secondary
             type="primary"
             class="chat-sidebar__import-button"
@@ -811,13 +806,19 @@ const promptTextList = ref([
               />
               <button
                 type="button"
-                class="chat-send-button"
-                :disabled="stylizingLoading"
+                :class="[
+                  'chat-send-button',
+                  {
+                    'chat-send-button--stop': stylizingLoading
+                  }
+                ]"
+                :title="stylizingLoading ? '中断当前回答' : '发送问题'"
+                :aria-label="stylizingLoading ? '中断当前回答' : '发送问题'"
                 @click.stop="handleCreateStylized()"
               >
                 <div
                   v-if="stylizingLoading"
-                  class="i-svg-spinners:pulse-2 text-20"
+                  class="chat-send-button__stop-icon"
                 ></div>
                 <div
                   v-else
@@ -1287,10 +1288,26 @@ const promptTextList = ref([
     box-shadow: 0 14px 24px rgb(88 114 255 / 26%);
   }
 
-  &:disabled {
-    opacity: 0.72;
-    cursor: not-allowed;
+  &:active {
+    transform: translateY(0);
   }
+}
+
+.chat-send-button--stop {
+  background: linear-gradient(135deg, #4f607f 0%, #7486a8 100%);
+  box-shadow: 0 10px 20px rgb(79 96 127 / 22%);
+
+  &:hover {
+    box-shadow: 0 14px 24px rgb(79 96 127 / 28%);
+  }
+}
+
+.chat-send-button__stop-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: currentcolor;
+  box-shadow: 0 0 0 4px rgb(255 255 255 / 10%);
 }
 
 @media (width <= 960px) {

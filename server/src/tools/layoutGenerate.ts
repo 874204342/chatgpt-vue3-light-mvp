@@ -1,6 +1,7 @@
+import path from 'node:path'
+import { readFile } from 'node:fs/promises'
 import type { FastifyRequest } from 'fastify'
 import { serverConfig } from '../config.js'
-import { getSaasToken } from '../routes/saas.js'
 import { type ChatMessage, extractTextContent } from '../types/chat.js'
 
 type LayoutSpecPlateArea = {
@@ -8,16 +9,43 @@ type LayoutSpecPlateArea = {
   Width: number
   Height: number
   DuplicateMark: string
+  ParentDuplicateMark?: string
+  OriginalId?: number
+  OriginalType?: number
+  OriginalLabel?: string
+  OriginalCategory?: string
+  OriginalThickness?: number
+  OriginalSpecification?: string
+}
+
+type LayoutResultData = {
+  Ratio: number
+  SpecPlateAreas: LayoutSpecPlateArea[]
+  Origin: string
+}
+
+type LayoutSchemeDisplay = {
+  key: string
+  name: string
+  description: string
+  materialSummary: string
+  score: number
+  usedOffcutCount: number
+  usedRawCount: number
+  totalPlateCount: number
+  isBest: boolean
+  layout: LayoutResultData
 }
 
 export type LayoutResult = {
   status: number
-  data: {
-    Ratio: number
-    SpecPlateAreas: LayoutSpecPlateArea[]
-    Origin: string
-  }
+  data: LayoutResultData
   msg: string
+  schemeKey?: string
+  schemeName?: string
+  schemeDescription?: string
+  bestSchemeKey?: string
+  schemes?: LayoutSchemeDisplay[]
 }
 
 type LayoutResolutionResult = {
@@ -25,6 +53,24 @@ type LayoutResolutionResult = {
   toolCalls: string[]
   layout?: LayoutResult
 }
+
+const LAYOUT_ANALYSIS_SYSTEM_PROMPT = [
+  '当用户发起玻璃套料、开料或裁切分析时，请按以下业务规则回复。',
+  '【执行流程要求】',
+  '1. 先基于订单的品类、厚度、规格、数量和磨边要求，匹配本地库存中的可用余料与原片。',
+  '2. 先组合多种候选方案，再分别调用排版接口进行真实试算，不能跳过库存筛选直接给出排版结论。',
+  '3. 方案至少包含“余料优先”“余料+原片混用”“原片优先”三类；若某类方案不成立，要说明原因。',
+  '4. 一个订单允许拆分为多种板材共同完成；品类匹配只看 category + thickness。',
+  '5. 最终推荐方案时，优先兼顾余料消化、综合利用率、备料合理性与执行稳定性。',
+  '',
+  '【输出要求】',
+  '请使用简洁、专业的中文进行回复，优先说明：',
+  '1. 候选方案 A/B/C 的选料逻辑，以及各自适合的业务侧重点。',
+  '2. 最佳方案为什么胜出，包括综合利用率、余料使用情况、原片备料情况与执行建议。',
+  '3. 还应保留哪些备选方案供客户选择，以及这些方案的取舍点。',
+  '4. 如存在库存不足、规格冲突、余料不适配或需要补充确认的信息，请明确指出。',
+  '如果系统消息已经明确说明参数缺失、本地数据缺失或工具调用失败，请严格依据系统消息如实告知用户，不要补充未经验证的数据。'
+].join('\n')
 
 export type LayoutParams = {
   task_id: string
@@ -47,52 +93,88 @@ export type LayoutParams = {
   }>
 }
 
-type SaasResult<T> = {
-  code?: number
-  message?: string
-  data?: {
-    list?: T[]
-    records?: T[]
-  }
+type RawInventoryRecord = {
+  id?: string
+  name?: string
+  category?: string | null
+  thickness?: number | string | null
+  width?: number | string | null
+  height?: number | string | null
+  stockQuantity?: number | string | null
+  location?: string | null
 }
 
-type ImportProduct = {
-  glassCategoryId?: number
-  glassName?: string
-  glassQuantity?: number
-  height?: number
-  mergdeList?: ImportProduct[]
-  orderNumber?: string
-  thickness?: number
-  unPlateQuantity?: number
-  width?: number
+type OffcutInventoryRecord = {
+  id?: string
+  tagId?: string
+  category?: string | null
+  thickness?: number | string | null
+  width?: number | string | null
+  height?: number | string | null
+  stockQuantity?: number | string | null
+  location?: string | null
 }
 
-type InventorySheet = {
-  categoryId?: number
-  height?: number
-  num?: number
-  thickness?: number
-  width?: number
+type MockInventoryFile<T> = {
+  records?: T[]
 }
 
-type SheetCandidate = {
+type LayoutMaterialGroup = {
+  glass_type: number
+  category: string
+  thickness: number
+}
+
+type LayoutParamsResolution = {
+  params: LayoutParams
+  material_groups: LayoutMaterialGroup[]
+  missing_fields: string[]
+}
+
+type GroupDemandProfile = {
+  group: LayoutMaterialGroup
+  glassInfos: LayoutParams['glass_infos']
+  totalArea: number
+}
+
+type InventorySheetCandidate = {
+  source: 'offcut' | 'raw'
+  recordId: string
+  label: string
+  location: string
+  category: string
+  thickness: number
   width: number
   height: number
   quantity: number
+  glassType: number
 }
 
-type ProductGroup = {
-  categoryId: number
-  glassType: number
+type SchemeKind = 'offcut-first' | 'mix' | 'raw-first'
+
+type LayoutSchemeCandidate = {
   name: string
-  thickness: number
-  products: Array<{
-    height: number
-    quantity: number
-    width: number
-  }>
+  kind: SchemeKind
+  description: string
+  sheets: InventorySheetCandidate[]
+  params: LayoutParams
+  sheetMap: Map<number, InventorySheetCandidate>
 }
+
+type LayoutSchemeResult = {
+  scheme: LayoutSchemeCandidate
+  layout: LayoutResult
+  score: number
+  usedOffcutCount: number
+  usedRawCount: number
+  totalPlateCount: number
+}
+
+const rawInventoryPath = path.resolve(serverConfig.workspaceRoot, 'server', 'src', 'mockData', 'raw_inventory.json')
+const offcutInventoryPath = path.resolve(serverConfig.workspaceRoot, 'server', 'src', 'mockData', 'offcut_inventory.json')
+
+let rawInventoryCache: RawInventoryRecord[] | null = null
+let offcutInventoryCache: OffcutInventoryRecord[] | null = null
 
 const extractLastUserText = (messages: ChatMessage[]) => {
   const lastUserMessage = [...messages].reverse().find(message => message.role === 'user')
@@ -108,21 +190,75 @@ const extractLayoutConversation = (messages: ChatMessage[]) => {
 }
 
 const hasLayoutKeyword = (userText: string) => /排版|套料|开料|裁切|利用率优化/.test(userText)
+const hasInventoryOrOrderKeyword = (userText: string) => {
+  return /原片库存|余料库存|仓库库存|查询库存|查库存|库存多少|库存量|可用库存|原片仓|余料|边角料|库位|查询订单|查订单|订单信息|订单列表|订单情况|近.+订单/.test(userText)
+}
 
 const extractOrderNumber = (text: string) => {
   const labeledMatch = text.match(/订单(?:号|编号)?\s*[：:=]?\s*([A-Z0-9][A-Z0-9_-]{2,})/i)
   if (labeledMatch?.[1]) return labeledMatch[1].toUpperCase()
 
-  // 兼容“D260914005 这个订单”这类订单号在前的自然表达。
   const standaloneMatch = text.match(/(?:^|[^A-Z0-9_-])(D\d{6,}[A-Z0-9_-]*)(?=$|[^A-Z0-9_-])/i)
   return standaloneMatch?.[1]?.toUpperCase()
+}
+
+const insertBeforeLastUserMessage = (messages: ChatMessage[], message: ChatMessage) => {
+  let lastUserIndex = -1
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index].role !== 'user') continue
+    lastUserIndex = index
+    break
+  }
+  if (lastUserIndex < 0) return [...messages, message]
+  return [
+    ...messages.slice(0, lastUserIndex),
+    message,
+    ...messages.slice(lastUserIndex)
+  ]
+}
+
+const withLayoutAnalysisPrompt = (messages: ChatMessage[]) => {
+  return insertBeforeLastUserMessage(messages, {
+    role: 'system',
+    content: LAYOUT_ANALYSIS_SYSTEM_PROMPT
+  })
+}
+
+const toPositiveNumber = (value: unknown) => {
+  const num = Number(value)
+  return Number.isFinite(num) && num > 0 ? num : 0
+}
+
+const toNormalizedText = (value: unknown) => String(value || '').trim()
+
+const loadMockRecords = async <T>(filePath: string): Promise<T[]> => {
+  const content = await readFile(filePath, 'utf-8')
+  const parsed = JSON.parse(content) as MockInventoryFile<T>
+  return Array.isArray(parsed.records) ? parsed.records : []
+}
+
+const getRawInventoryRecords = async () => {
+  if (!rawInventoryCache) {
+    rawInventoryCache = await loadMockRecords<RawInventoryRecord>(rawInventoryPath)
+  }
+  return rawInventoryCache
+}
+
+const getOffcutInventoryRecords = async () => {
+  if (!offcutInventoryCache) {
+    offcutInventoryCache = await loadMockRecords<OffcutInventoryRecord>(offcutInventoryPath)
+  }
+  return offcutInventoryCache
 }
 
 export const shouldGenerateLayout = async (messages: ChatMessage[]) => {
   const userText = extractLayoutConversation(messages)
   const lastUserText = extractLastUserText(messages)
 
-  // 明确的“订单号 + 裁切意图”直接进入业务流程，避免依赖模型分类结果。
+  if (hasInventoryOrOrderKeyword(lastUserText) && !hasLayoutKeyword(lastUserText)) {
+    return false
+  }
+
   if (extractOrderNumber(lastUserText) && hasLayoutKeyword(lastUserText)) return true
 
   try {
@@ -140,8 +276,8 @@ export const shouldGenerateLayout = async (messages: ChatMessage[]) => {
             role: 'system',
             content: [
               '判断用户是否希望进行玻璃套料、开料、裁切或原片利用率优化。',
-              '用户只提供订单号并要求自动排版或生成裁切方案时，也必须返回 true；系统会自行查询该订单的产品明细和匹配的原片库存。',
-              '用户手工提供成品规格和原片库存并要求生成裁切方案时返回 true。',
+              '用户只提供订单号并要求自动排版或生成裁切方案时，也必须返回 true；后续流程会再判断本地是否存在对应业务数据。',
+              '用户手工提供订单规格并要求系统先筛库存再给出排版方案时返回 true。',
               '单纯查询订单或库存、且没有排版或裁切诉求时返回 false。',
               '其他所有请求返回 false。',
               '只输出 true 或 false，不要输出其他内容。'
@@ -149,35 +285,36 @@ export const shouldGenerateLayout = async (messages: ChatMessage[]) => {
           },
           {
             role: 'user',
-            content: userText
+            content: lastUserText || userText
           }
         ]
       }),
       signal: AbortSignal.timeout(30000)
     })
 
-    if (!response.ok) return hasLayoutKeyword(userText)
+    if (!response.ok) return hasLayoutKeyword(lastUserText || userText)
 
     const data = await response.json()
     return data?.choices?.[0]?.message?.content?.trim().toLowerCase() === 'true'
   } catch {
-    return hasLayoutKeyword(userText)
+    return hasLayoutKeyword(lastUserText || userText)
   }
 }
 
-const createLayoutSummary = (layout: LayoutResult) => {
+const createLayoutSummary = (layout: LayoutResult, schemeName?: string) => {
   const plates = layout.data.SpecPlateAreas
   const plans = plates.map((plate, index) => {
-    const count = plate.DuplicateMark.length
-    return `- 方案 ${ index + 1 }：原片 ${ plate.Width }×${ plate.Height }，单片利用率 ${ (plate.Ratio * 100).toFixed(2) }%，使用数量 ${ count }`
+    const count = Math.max(1, plate.DuplicateMark?.length || 1)
+    return `- 原片方案 ${ index + 1 }：原片 ${ plate.Width }×${ plate.Height }，单片利用率 ${ (plate.Ratio * 100).toFixed(2) }%，使用数量 ${ count }`
   })
 
   return [
+    schemeName ? `最佳排版方案：${ schemeName }` : '',
     '排版结果摘要：',
     `- 综合利用率：${ (layout.data.Ratio * 100).toFixed(2) }%`,
     `- 排版方案数：${ plates.length }`,
     ...plans
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 }
 
 const extractJsonObject = (text: string) => {
@@ -193,22 +330,78 @@ const extractJsonObject = (text: string) => {
   return JSON.parse(rawText.slice(startIndex, endIndex + 1))
 }
 
-type LayoutParamsResolution = {
-  params: LayoutParams
-  missing_fields: string[]
+const assertLayoutParamsResolution = (payload: any): LayoutParamsResolution => {
+  if (!payload || !payload.params || !Array.isArray(payload.missing_fields) || !Array.isArray(payload.material_groups)) {
+    throw new Error('模型生成的排版规划结构不完整')
+  }
+
+  const { params } = payload
+  if (!Array.isArray(params.glass_infos)) {
+    throw new Error('模型生成的订单规格结构不完整')
+  }
+
+  return payload as LayoutParamsResolution
 }
 
-const assertLayoutParamsResolution = (params: any): LayoutParamsResolution => {
-  if (!params || !params.params || !Array.isArray(params.missing_fields)) {
-    throw new Error('模型生成的排版参数结构不完整')
+const normalizeLayoutResolution = (resolution: LayoutParamsResolution): LayoutParamsResolution => {
+  const normalizedGroups = resolution.material_groups
+    .map((group, index) => ({
+      glass_type: index + 1,
+      category: toNormalizedText(group.category),
+      thickness: toPositiveNumber(group.thickness)
+    }))
+    .filter(group => group.category && group.thickness > 0)
+
+  if (!normalizedGroups.length) {
+    throw new Error('未识别到有效的订单材质分组')
   }
 
-  const { params: layoutParams } = params
-  if (!Array.isArray(layoutParams.sheet_infos) || !Array.isArray(layoutParams.glass_infos)) {
-    throw new Error('模型生成的排版参数结构不完整')
+  const groupTypeMap = new Map<number, number>()
+  resolution.material_groups.forEach((group, index) => {
+    groupTypeMap.set(Number(group.glass_type), index + 1)
+  })
+
+  const normalizedGlassInfos = resolution.params.glass_infos
+    .map((glass, index) => {
+      const width = toPositiveNumber(glass.size?.[0])
+      const height = toPositiveNumber(glass.size?.[1])
+      const num = Math.max(1, Math.round(toPositiveNumber(glass.num)))
+      const mappedType = groupTypeMap.get(Number(glass.glass_type))
+
+      if (!mappedType || width <= 0 || height <= 0) return null
+
+      return {
+        id: Number(glass.id) || index + 1,
+        glass_type: mappedType,
+        size: [width, height] as [number, number],
+        num,
+        grinding_margin: Array.isArray(glass.grinding_margin) && glass.grinding_margin.length === 2
+          ? glass.grinding_margin
+          : [[0, 0], [0, 0]],
+        new_glass: Number(glass.new_glass) || 0
+      }
+    })
+    .filter(Boolean) as LayoutParams['glass_infos']
+
+  if (!normalizedGlassInfos.length) {
+    throw new Error('未识别到有效的订单规格')
   }
 
-  return params as LayoutParamsResolution
+  return {
+    params: {
+      task_id: resolution.params.task_id || `layout-plan-${ Date.now() }`,
+      min_cutting_rate: Number(resolution.params.min_cutting_rate) || 0,
+      cutting_margin: Number(resolution.params.cutting_margin) || 0,
+      sheet_infos: [],
+      glass_infos: normalizedGlassInfos
+    },
+    material_groups: normalizedGroups,
+    missing_fields: Array.from(new Set(
+      resolution.missing_fields
+        .map(item => toNormalizedText(item))
+        .filter(Boolean)
+    ))
+  }
 }
 
 const generateLayoutParamsByModel = async (userText: string) => {
@@ -225,12 +418,15 @@ const generateLayoutParamsByModel = async (userText: string) => {
         {
           role: 'system',
           content: [
-            '你是玻璃套料排版接口参数提取器。',
+            '你是玻璃套料排版规划参数提取器。',
             '请根据用户提供的信息输出严格 JSON，不要输出解释、Markdown 或代码块。',
             'JSON 必须匹配以下结构：',
-            '{"params":{"task_id":"string","min_cutting_rate":0,"cutting_margin":0,"sheet_infos":[{"id":1,"glass_type":0,"size":[3660,2140],"num":327,"trimming_margin":[[0,0],[0,0]]}],"glass_infos":[{"id":1001,"glass_type":0,"size":[1100,1000],"num":135,"grinding_margin":[[0,0],[0,0]],"new_glass":0}]},"missing_fields":[]}',
-            '必须确认：至少一项成品订单的规格和数量；至少一项原片库存的规格和库存；是否允许旋转。缺少任一项时，写入 missing_fields，并且 params 中不得虚构该字段。',
-            '规格格式为宽×高时，size 按 [宽, 高] 输出；库存/数量转为 num；glass_type、new_glass、磨边、修边、最低切裁率、掰片距离可按默认值 0 输出；id 用递增整数；task_id 可用当前时间戳字符串。'
+            '{"params":{"task_id":"string","min_cutting_rate":0,"cutting_margin":0,"sheet_infos":[],"glass_infos":[{"id":1001,"glass_type":1,"size":[1100,1000],"num":135,"grinding_margin":[[0,0],[0,0]],"new_glass":0}]},"material_groups":[{"glass_type":1,"category":"白玻","thickness":8}],"missing_fields":[]}',
+            '这里的 sheet_infos 必须始终返回空数组，因为原片和余料库存将由后端根据本地 mock 数据自动筛选。',
+            '必须确认：至少一项成品订单的规格和数量；并且每个订单材质分组都要有 category 和 thickness。',
+            '若缺少上述信息，写入 missing_fields，并且不要虚构 category、thickness、规格或数量。',
+            '同一 category + thickness 的订单必须使用同一个 glass_type；不同分组使用不同 glass_type。',
+            '规格格式为宽×高时，size 按 [宽, 高] 输出；数量转为 num；磨边、最低切裁率、掰片距离可按默认值 0 输出；id 用递增整数；task_id 可用当前时间戳字符串。'
           ].join('\n')
         },
         {
@@ -252,235 +448,316 @@ const generateLayoutParamsByModel = async (userText: string) => {
     throw new Error('排版参数解析模型未返回内容')
   }
 
-  return assertLayoutParamsResolution(extractJsonObject(content))
+  return normalizeLayoutResolution(assertLayoutParamsResolution(extractJsonObject(content)))
 }
 
-const getSaasRecords = <T>(result: SaasResult<T>) => result.data?.list || result.data?.records || []
+const getGroupDemandProfiles = (
+  materialGroups: LayoutMaterialGroup[],
+  glassInfos: LayoutParams['glass_infos']
+) => {
+  return materialGroups
+    .map((group) => {
+      const relatedGlassInfos = glassInfos.filter(item => item.glass_type === group.glass_type)
+      const totalArea = relatedGlassInfos.reduce((sum, item) => {
+        return sum + item.size[0] * item.size[1] * item.num
+      }, 0)
 
-const requestSaas = async <T>(token: string, path: string, body: Record<string, unknown>) => {
-  const response = await fetch(`${ serverConfig.saasBaseUrl }${ path }`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': token
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30000)
-  })
-  const result = await response.json().catch(() => ({})) as SaasResult<T>
-  if (!response.ok || result.code !== 200) {
-    throw new Error(result.message || 'SaaS 服务请求失败')
-  }
-  return getSaasRecords(result)
-}
-
-const formatDate = (date: Date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${ year }-${ month }-${ day }`
-}
-
-const getOrderDateRange = (orderNumber: string) => {
-  const matched = orderNumber.match(/^D(\d{2})(\d{2})(\d{2})/i)
-  if (matched) {
-    const orderDate = `20${ matched[1] }-${ matched[2] }-${ matched[3] }`
-    const parsedDate = new Date(`${ orderDate }T00:00:00`)
-    if (!Number.isNaN(parsedDate.getTime()) && formatDate(parsedDate) === orderDate) {
       return {
-        createDateBegin: orderDate,
-        createDateEnd: orderDate
+        group,
+        glassInfos: relatedGlassInfos,
+        totalArea
       }
-    }
-  }
-
-  const end = new Date()
-  const begin = new Date(end)
-  begin.setDate(begin.getDate() - 29)
-  return {
-    createDateBegin: formatDate(begin),
-    createDateEnd: formatDate(end)
-  }
+    })
+    .filter(item => item.glassInfos.length)
 }
 
-const getOrderProducts = async (token: string, orderNumber: string) => {
-  const records = await requestSaas<ImportProduct>(token, '/optimImport/importOrder', {
-    orderNumber,
-    ...getOrderDateRange(orderNumber),
-    showSpec: true,
-    optimPlanType: 0,
-    pageParam: {
-      pageNum: 1,
-      pageSize: 500
+const canFitPiece = (sheetWidth: number, sheetHeight: number, pieceWidth: number, pieceHeight: number) => {
+  return (
+    (sheetWidth >= pieceWidth && sheetHeight >= pieceHeight)
+    || (sheetWidth >= pieceHeight && sheetHeight >= pieceWidth)
+  )
+}
+
+const getPieceCapacity = (sheetWidth: number, sheetHeight: number, pieceWidth: number, pieceHeight: number) => {
+  const direct = Math.floor(sheetWidth / pieceWidth) * Math.floor(sheetHeight / pieceHeight)
+  const rotated = Math.floor(sheetWidth / pieceHeight) * Math.floor(sheetHeight / pieceWidth)
+  return Math.max(direct, rotated)
+}
+
+const estimateSheetUtilityScore = (candidate: InventorySheetCandidate, profile: GroupDemandProfile) => {
+  const sheetArea = candidate.width * candidate.height
+  if (!sheetArea) return 0
+
+  const bestRatio = profile.glassInfos.reduce((maxRatio, glass) => {
+    const pieceWidth = glass.size[0]
+    const pieceHeight = glass.size[1]
+    const capacity = getPieceCapacity(candidate.width, candidate.height, pieceWidth, pieceHeight)
+    if (!capacity) return maxRatio
+
+    const usedArea = Math.min(capacity, glass.num) * pieceWidth * pieceHeight
+    return Math.max(maxRatio, usedArea / sheetArea)
+  }, 0)
+
+  const areaPenalty = sheetArea / Math.max(profile.totalArea, sheetArea)
+  return bestRatio * 100 - areaPenalty
+}
+
+const aggregateInventoryCandidates = (items: InventorySheetCandidate[]) => {
+  const merged = new Map<string, InventorySheetCandidate>()
+
+  items.forEach((item) => {
+    const key = [
+      item.source,
+      item.glassType,
+      item.width,
+      item.height
+    ].join(':')
+    const current = merged.get(key)
+
+    if (current) {
+      current.quantity += item.quantity
+      current.label = `${ current.label } / ${ item.label }`
+      current.location = `${ current.location } / ${ item.location }`
+      return
     }
+
+    merged.set(key, {
+      ...item
+    })
   })
-  if (!records.length) {
-    throw new Error(`订单 ${ orderNumber } 未返回可导入的产品记录`)
-  }
 
-  // mergdeList 子项可能只含尺寸与数量，需要继承父项的材质和订单字段。
-  const products = records.flatMap(item => item.mergdeList?.length
-    ? item.mergdeList.map(detail => ({
-      ...item,
-      ...detail,
-      mergdeList: undefined
-    }))
-    : [item])
-    .filter(item => !item.orderNumber || item.orderNumber === orderNumber)
-
-  if (!products.length) {
-    throw new Error(`订单 ${ orderNumber } 的 mergdeList 未返回当前订单的加工明细`)
-  }
-  return products
+  return [...merged.values()]
 }
 
-const groupOrderProducts = (products: ImportProduct[]) => {
-  const grouped = new Map<string, ProductGroup>()
+const getInventoryCandidatesByGroup = async (profiles: GroupDemandProfile[]) => {
+  const rawRecords = await getRawInventoryRecords()
+  const offcutRecords = await getOffcutInventoryRecords()
+  const groupCandidateMap = new Map<number, {
+    raws: InventorySheetCandidate[]
+    offcuts: InventorySheetCandidate[]
+  }>()
 
-  products.forEach(product => {
-    const categoryId = Number(product.glassCategoryId)
-    const thickness = Number(product.thickness)
-    const width = Number(product.width)
-    const height = Number(product.height)
-    const quantity = product.unPlateQuantity === undefined || product.unPlateQuantity === null
-      ? Number(product.glassQuantity)
-      : Number(product.unPlateQuantity)
+  profiles.forEach((profile) => {
+    const raws = aggregateInventoryCandidates(
+      rawRecords
+        .filter(record => toNormalizedText(record.category) === profile.group.category)
+        .filter(record => toPositiveNumber(record.thickness) === profile.group.thickness)
+        .map((record): InventorySheetCandidate | null => {
+          const width = toPositiveNumber(record.width)
+          const height = toPositiveNumber(record.height)
+          const quantity = Math.max(1, Math.round(toPositiveNumber(record.stockQuantity)))
+          if (!width || !height || !quantity) return null
+          if (!profile.glassInfos.some(glass => canFitPiece(width, height, glass.size[0], glass.size[1]))) return null
 
-    if (![categoryId, thickness, width, height, quantity].every(Number.isFinite) || quantity <= 0 || width <= 0 || height <= 0) return
+          return {
+            source: 'raw',
+            recordId: toNormalizedText(record.id) || `${ profile.group.glass_type }-raw-${ width }-${ height }`,
+            label: toNormalizedText(record.name) || `${ profile.group.category }原片${ width }×${ height }`,
+            location: toNormalizedText(record.location) || '-',
+            category: profile.group.category,
+            thickness: profile.group.thickness,
+            width,
+            height,
+            quantity,
+            glassType: profile.group.glass_type
+          }
+        })
+        .filter(Boolean) as InventorySheetCandidate[]
+    ).sort((left, right) => {
+      return estimateSheetUtilityScore(right, profile) - estimateSheetUtilityScore(left, profile)
+    })
 
-    const key = `${ categoryId }:${ thickness }`
-    let group = grouped.get(key)
-    if (!group) {
-      group = {
-        categoryId,
-        glassType: grouped.size + 1,
-        name: product.glassName || String(categoryId),
-        thickness,
-        products: []
+    const offcuts = aggregateInventoryCandidates(
+      offcutRecords
+        .filter(record => toNormalizedText(record.category) === profile.group.category)
+        .filter(record => toPositiveNumber(record.thickness) === profile.group.thickness)
+        .map((record): InventorySheetCandidate | null => {
+          const width = toPositiveNumber(record.width)
+          const height = toPositiveNumber(record.height)
+          const quantity = Math.max(1, Math.round(toPositiveNumber(record.stockQuantity)))
+          if (!width || !height || !quantity) return null
+          if (!profile.glassInfos.some(glass => canFitPiece(width, height, glass.size[0], glass.size[1]))) return null
+
+          return {
+            source: 'offcut',
+            recordId: toNormalizedText(record.id || record.tagId) || `${ profile.group.glass_type }-offcut-${ width }-${ height }`,
+            label: toNormalizedText(record.tagId) || `${ profile.group.category }余料${ width }×${ height }`,
+            location: toNormalizedText(record.location) || '-',
+            category: profile.group.category,
+            thickness: profile.group.thickness,
+            width,
+            height,
+            quantity,
+            glassType: profile.group.glass_type
+          }
+        })
+        .filter(Boolean) as InventorySheetCandidate[]
+    ).sort((left, right) => {
+      return estimateSheetUtilityScore(right, profile) - estimateSheetUtilityScore(left, profile)
+    })
+
+    groupCandidateMap.set(profile.group.glass_type, {
+      raws,
+      offcuts
+    })
+  })
+
+  return groupCandidateMap
+}
+
+const takeWithAreaTarget = (
+  candidates: InventorySheetCandidate[],
+  targetArea: number,
+  hardLimit: number
+) => {
+  const selected: InventorySheetCandidate[] = []
+  let currentArea = 0
+
+  candidates.some((candidate) => {
+    if (selected.length >= hardLimit) return true
+    selected.push(candidate)
+    currentArea += candidate.width * candidate.height * candidate.quantity
+    return currentArea >= targetArea
+  })
+
+  return selected
+}
+
+const createSchemeSheets = (
+  kind: SchemeKind,
+  profiles: GroupDemandProfile[],
+  groupCandidateMap: Map<number, {
+    raws: InventorySheetCandidate[]
+    offcuts: InventorySheetCandidate[]
+  }>
+) => {
+  const sheets: InventorySheetCandidate[] = []
+
+  profiles.forEach((profile) => {
+    const candidates = groupCandidateMap.get(profile.group.glass_type)
+    const raws = candidates?.raws || []
+    const offcuts = candidates?.offcuts || []
+
+    if (!raws.length && !offcuts.length) {
+      throw new Error(`${ profile.group.category } ${ profile.group.thickness }mm 没有可用于排版的本地原片或余料库存`)
+    }
+
+    if (kind === 'offcut-first') {
+      const targetArea = profile.totalArea * 1.15
+      const selectedOffcuts = takeWithAreaTarget(offcuts, targetArea, 6)
+      const selectedRaws = selectedOffcuts.reduce((sum, item) => sum + item.width * item.height * item.quantity, 0) >= targetArea
+        ? []
+        : raws.slice(0, Math.min(raws.length, 2))
+
+      sheets.push(...(selectedOffcuts.length ? selectedOffcuts : raws.slice(0, 1)))
+      sheets.push(...selectedRaws)
+      return
+    }
+
+    if (kind === 'mix') {
+      sheets.push(...offcuts.slice(0, Math.min(offcuts.length, 4)))
+      sheets.push(...raws.slice(0, Math.min(raws.length, 2)))
+      if (!offcuts.length && raws.length) {
+        sheets.push(...raws.slice(2, Math.min(raws.length, 3)))
       }
-      grouped.set(key, group)
+      return
     }
 
-    const sameSize = group.products.find(item => item.width === width && item.height === height)
-    if (sameSize) {
-      sameSize.quantity += quantity
-    } else {
-      group.products.push({
-        width,
-        height,
-        quantity
-      })
+    if (raws.length) {
+      sheets.push(...raws.slice(0, Math.min(raws.length, 3)))
+      return
     }
+
+    sheets.push(...offcuts.slice(0, Math.min(offcuts.length, 3)))
   })
 
-  return [...grouped.values()]
+  return sheets
 }
 
-const canFitAnyProduct = (sheet: InventorySheet, group: ProductGroup) => {
-  const sheetWidth = Number(sheet.width)
-  const sheetHeight = Number(sheet.height)
-  return group.products.some(product => (
-    (sheetWidth >= product.width && sheetHeight >= product.height)
-    || (sheetWidth >= product.height && sheetHeight >= product.width)
-  ))
-}
+const buildLayoutParamsForScheme = (
+  baseParams: LayoutParams,
+  schemeName: string,
+  sheets: InventorySheetCandidate[]
+): LayoutSchemeCandidate => {
+  const normalizedSheets = sheets.filter((item, index, array) => {
+    return array.findIndex(candidate => (
+      candidate.source === item.source
+      && candidate.glassType === item.glassType
+      && candidate.width === item.width
+      && candidate.height === item.height
+    )) === index
+  })
 
-const buildOrderLayoutParams = async (token: string, orderNumber: string) => {
-  const products = await getOrderProducts(token, orderNumber)
-  const groups = groupOrderProducts(products)
-  if (!groups.length) {
-    const missingFields = ['glassCategoryId', 'thickness', 'width', 'height']
-      .filter(field => products.every((product) => {
-        const value = product[field as keyof ImportProduct]
-        return value === undefined || value === null
-      }))
-    const fieldMessage = missingFields.length ? `，缺少字段：${ missingFields.join('、') }` : ''
-    throw new Error(`订单 ${ orderNumber } 已读取 ${ products.length } 条 mergdeList 明细，但没有数量大于 0 的有效加工规格${ fieldMessage }`)
-  }
-
-  const inventories = await Promise.all(groups.map(group => requestSaas<InventorySheet>(
-    token,
-    '/optimGlassInfo/otherList?pageNum=1&pageSize=200',
-    {
-      categoryId: group.categoryId,
-      thickness: group.thickness,
-      excludeZeroStock: 1
+  const sheetMap = new Map<number, InventorySheetCandidate>()
+  const sheetInfos = normalizedSheets.map((sheet, index) => {
+    const id = index + 1
+    sheetMap.set(id, sheet)
+    return {
+      id,
+      glass_type: sheet.glassType,
+      size: [sheet.width, sheet.height] as [number, number],
+      num: sheet.quantity,
+      trimming_margin: [[0, 0], [0, 0]] as [[number, number], [number, number]]
     }
-  )))
-
-  const sheetInfos: LayoutParams['sheet_infos'] = []
-  const glassInfos: LayoutParams['glass_infos'] = []
-  let sheetId = 1
-  let glassId = 1001
-
-  groups.forEach((group, groupIndex) => {
-    const matchingSheets = inventories[groupIndex]
-      .filter(sheet => Number(sheet.categoryId) === group.categoryId)
-      .filter(sheet => Number(sheet.thickness) === group.thickness)
-      .filter(sheet => Number(sheet.num) > 0 && Number(sheet.width) > 0 && Number(sheet.height) > 0)
-      .filter(sheet => canFitAnyProduct(sheet, group))
-
-    if (!matchingSheets.length) {
-      throw new Error(`${ group.name } ${ group.thickness }mm 没有可容纳订单规格的原片库存`)
-    }
-    const unsupportedProduct = group.products.find(product => !matchingSheets.some(sheet => {
-      const sheetWidth = Number(sheet.width)
-      const sheetHeight = Number(sheet.height)
-      return (sheetWidth >= product.width && sheetHeight >= product.height)
-        || (sheetWidth >= product.height && sheetHeight >= product.width)
-    }))
-    if (unsupportedProduct) {
-      throw new Error(`${ group.name } ${ group.thickness }mm 缺少可容纳 ${ unsupportedProduct.width }×${ unsupportedProduct.height } 的原片`)
-    }
-
-    const mergedSheets = new Map<string, SheetCandidate>()
-    matchingSheets.forEach(sheet => {
-      const width = Number(sheet.width)
-      const height = Number(sheet.height)
-      const key = `${ width }:${ height }`
-      const current = mergedSheets.get(key)
-      if (current) current.quantity += Number(sheet.num)
-      else mergedSheets.set(key, {
-        width,
-        height,
-        quantity: Number(sheet.num)
-      })
-    })
-
-    const sortedSheets = [...mergedSheets.values()]
-      .sort((left, right) => left.width * left.height - right.width * right.height)
-    sortedSheets.forEach(sheet => {
-      sheetInfos.push({
-        id: sheetId++,
-        glass_type: group.glassType,
-        size: [sheet.width, sheet.height],
-        num: sheet.quantity,
-        trimming_margin: [[0, 0], [0, 0]]
-      })
-    })
-
-    group.products.forEach(product => {
-      glassInfos.push({
-        id: glassId++,
-        glass_type: group.glassType,
-        size: [product.width, product.height],
-        num: product.quantity,
-        grinding_margin: [[0, 0], [0, 0]],
-        new_glass: 0
-      })
-    })
   })
 
   return {
+    name: schemeName,
+    kind: schemeName === '方案A：余料优先'
+      ? 'offcut-first'
+      : schemeName === '方案B：余料 + 原片混用'
+        ? 'mix'
+        : 'raw-first',
+    description: schemeName === '方案A：余料优先'
+      ? '优先消化本地余料，不足部分再少量补充原片。'
+      : schemeName === '方案B：余料 + 原片混用'
+        ? '同时保留可用余料与主力原片规格，兼顾利用率与执行稳定性。'
+        : '优先使用标准原片规格，追求更稳定的批量执行效率。',
+    sheets: normalizedSheets,
     params: {
-      task_id: `order-${ orderNumber }-${ Date.now() }`,
-      min_cutting_rate: 0,
-      cutting_margin: 0,
-      sheet_infos: sheetInfos,
-      glass_infos: glassInfos
-    } satisfies LayoutParams,
-    summary: `订单 ${ orderNumber }：${ groups.length } 个材质/厚度分组，${ glassInfos.length } 种成品规格，筛选出 ${ sheetInfos.length } 种可用原片规格。`
+      ...baseParams,
+      task_id: `${ baseParams.task_id }-${ Date.now() }-${ schemeName }`,
+      sheet_infos: sheetInfos
+    },
+    sheetMap
   }
+}
+
+const createSchemeCandidates = async (
+  resolution: LayoutParamsResolution
+) => {
+  const profiles = getGroupDemandProfiles(resolution.material_groups, resolution.params.glass_infos)
+  const groupCandidateMap = await getInventoryCandidatesByGroup(profiles)
+  const schemes = [
+    buildLayoutParamsForScheme(
+      resolution.params,
+      '方案A：余料优先',
+      createSchemeSheets('offcut-first', profiles, groupCandidateMap)
+    ),
+    buildLayoutParamsForScheme(
+      resolution.params,
+      '方案B：余料 + 原片混用',
+      createSchemeSheets('mix', profiles, groupCandidateMap)
+    ),
+    buildLayoutParamsForScheme(
+      resolution.params,
+      '方案C：原片优先',
+      createSchemeSheets('raw-first', profiles, groupCandidateMap)
+    )
+  ]
+
+  const uniqueSchemes = new Map<string, LayoutSchemeCandidate>()
+  schemes.forEach((scheme) => {
+    const key = scheme.sheets
+      .map(item => `${ item.source }:${ item.glassType }:${ item.width }x${ item.height }:${ item.quantity }`)
+      .sort()
+      .join('|')
+    if (!uniqueSchemes.has(key)) {
+      uniqueSchemes.set(key, scheme)
+    }
+  })
+
+  return [...uniqueSchemes.values()]
 }
 
 const requestLayout = async (params: LayoutParams) => {
@@ -500,8 +777,141 @@ const requestLayout = async (params: LayoutParams) => {
   return JSON.parse(await response.text()) as LayoutResult
 }
 
+const countPlateUsage = (plate: LayoutSpecPlateArea) => {
+  return Math.max(1, plate.DuplicateMark?.length || 1)
+}
+
+const scoreLayoutScheme = (result: LayoutSchemeCandidate, layout: LayoutResult): LayoutSchemeResult => {
+  let usedOffcutCount = 0
+  let usedRawCount = 0
+  let totalPlateCount = 0
+
+  layout.data.SpecPlateAreas.forEach((plate) => {
+    const count = countPlateUsage(plate)
+    totalPlateCount += count
+    const source = typeof plate.OriginalId === 'number' ? result.sheetMap.get(plate.OriginalId) : null
+    if (!source) return
+    if (source.source === 'offcut') {
+      usedOffcutCount += count
+      return
+    }
+    usedRawCount += count
+  })
+
+  const kindBonus = result.kind === 'offcut-first'
+    ? 8
+    : result.kind === 'mix'
+      ? 4
+      : 0
+  const score = layout.data.Ratio * 1000 + usedOffcutCount * 18 - usedRawCount * 3 + kindBonus
+
+  return {
+    scheme: result,
+    layout,
+    score,
+    usedOffcutCount,
+    usedRawCount,
+    totalPlateCount
+  }
+}
+
+const enrichLayoutPlateMeta = (layout: LayoutResult, scheme: LayoutSchemeCandidate) => {
+  layout.data.SpecPlateAreas.forEach((plate) => {
+    const source = typeof plate.OriginalId === 'number' ? scheme.sheetMap.get(plate.OriginalId) : null
+    if (!source) return
+
+    // 将真实原片业务信息回传给前端，避免标题退化为“原片1/原片2”。
+    plate.OriginalLabel = source.label
+    plate.OriginalCategory = source.category
+    plate.OriginalThickness = source.thickness
+    plate.OriginalSpecification = `${ source.width }×${ source.height }`
+  })
+
+  return layout
+}
+
+const buildSchemeResultKey = (scheme: LayoutSchemeCandidate) => {
+  return `${ scheme.kind }-${ scheme.name }`
+}
+
+const toLayoutSchemeDisplay = (result: LayoutSchemeResult, bestSchemeKey: string): LayoutSchemeDisplay => {
+  const key = buildSchemeResultKey(result.scheme)
+
+  return {
+    key,
+    name: result.scheme.name,
+    description: result.scheme.description,
+    materialSummary: formatSchemeMaterialSummary(result.scheme),
+    score: Number(result.score.toFixed(2)),
+    usedOffcutCount: result.usedOffcutCount,
+    usedRawCount: result.usedRawCount,
+    totalPlateCount: result.totalPlateCount,
+    isBest: key === bestSchemeKey,
+    layout: result.layout.data
+  }
+}
+
+const formatSchemeMaterialSummary = (scheme: LayoutSchemeCandidate) => {
+  const offcutSpecs = scheme.sheets.filter(item => item.source === 'offcut')
+  const rawSpecs = scheme.sheets.filter(item => item.source === 'raw')
+  const offcutSummary = offcutSpecs.length
+    ? `余料 ${ offcutSpecs.slice(0, 3).map(item => `${ item.width }×${ item.height }(${ item.quantity }张)`).join('、') }`
+    : '未纳入余料'
+  const rawSummary = rawSpecs.length
+    ? `原片 ${ rawSpecs.slice(0, 3).map(item => `${ item.width }×${ item.height }(${ item.quantity }张)`).join('、') }`
+    : '未纳入原片'
+
+  return `${ offcutSummary }；${ rawSummary }`
+}
+
+const createSchemeComparisonSummary = (results: LayoutSchemeResult[]) => {
+  const sortedResults = [...results].sort((left, right) => right.score - left.score)
+
+  return [
+    '多方案试排结果：',
+    ...sortedResults.map((item, index) => {
+      return [
+        `- ${ item.scheme.name }${ index === 0 ? '（当前推荐）' : '' }`,
+        `  候选料：${ formatSchemeMaterialSummary(item.scheme) }`,
+        `  综合利用率：${ (item.layout.data.Ratio * 100).toFixed(2) }%`,
+        `  实际用板：共 ${ item.totalPlateCount } 张，其中余料 ${ item.usedOffcutCount } 张，原片 ${ item.usedRawCount } 张`,
+        `  方案特征：${ item.scheme.description }`
+      ].join('\n')
+    })
+  ].join('\n')
+}
+
+const resolveSchemeLayouts = async (
+  schemeCandidates: LayoutSchemeCandidate[],
+  onProgress?: (message: string) => void
+) => {
+  const results: LayoutSchemeResult[] = []
+  const errors: string[] = []
+
+  for (const candidate of schemeCandidates) {
+    try {
+      onProgress?.(`正在试排${ candidate.name }…`)
+      const layout = enrichLayoutPlateMeta(await requestLayout(candidate.params), candidate)
+      results.push(scoreLayoutScheme(candidate, layout))
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '未知错误'
+      errors.push(`${ candidate.name }：${ errorMessage }`)
+    }
+  }
+
+  if (!results.length) {
+    throw new Error(errors.join('；') || '候选方案均未排版成功')
+  }
+
+  return {
+    best: [...results].sort((left, right) => right.score - left.score)[0],
+    results,
+    errors
+  }
+}
+
 export const resolveLayoutMessages = async (
-  request: FastifyRequest,
+  _request: FastifyRequest,
   messages: ChatMessage[],
   isLayoutRequest: boolean,
   onProgress?: (message: string) => void
@@ -515,93 +925,100 @@ export const resolveLayoutMessages = async (
 
   const lastUserText = extractLastUserText(messages)
   const orderNumber = extractOrderNumber(lastUserText)
-  // 订单自动排版只保留本轮指令，避免历史订单信息污染模型总结。
   const responseMessages: ChatMessage[] = orderNumber
     ? [{
       role: 'user',
       content: lastUserText
     }]
     : messages
+  const layoutPromptMessages = withLayoutAnalysisPrompt(responseMessages)
 
   try {
     const userText = extractLayoutConversation(messages)
-    let params: LayoutParams
-    let sourceSummary = ''
 
     if (orderNumber) {
-      const token = getSaasToken(request)
-      if (!token) {
-        return {
-          messages: [
-            ...responseMessages,
-            {
-              role: 'system',
-              content: `用户希望为订单 ${ orderNumber } 自动生成裁切方案，但当前未登录 SaaS。请仅提示用户先在页面右上角登录 SaaS 后重试，不要提及其他订单，不要猜测订单或库存数据。`
-            }
-          ],
-          toolCalls: ['layout-order-auth-required']
-        }
+      return {
+        messages: [
+          ...layoutPromptMessages,
+          {
+            role: 'system',
+            content: [
+              `用户希望为订单 ${ orderNumber } 自动生成裁切方案。`,
+              '当前项目已停用 SaaS 订单接入，系统会优先读取本地 mock 订单数据。',
+              `但目前没有订单 ${ orderNumber } 对应的本地 mock 数据，因此无法自动生成该订单的裁切方案。`,
+              '请直接告知用户当前没有可用的本地订单数据；如需继续排版，请让用户直接提供成品规格、数量和材质要求。'
+            ].join('\n')
+          }
+        ],
+        toolCalls: ['layout-order-no-local-data']
       }
-
-      onProgress?.(`正在同步订单 ${ orderNumber } 的成品与原片库存…`)
-      const orderLayout = await buildOrderLayoutParams(token, orderNumber)
-      params = orderLayout.params
-      sourceSummary = orderLayout.summary
-    } else {
-      onProgress?.('正在整理订单规格与原片数据…')
-      const resolution = await generateLayoutParamsByModel(userText)
-      if (resolution.missing_fields.length) {
-        return {
-          messages: [
-            ...messages,
-            {
-              role: 'system',
-              content: [
-                '用户希望进行玻璃套料排版，但参数不完整。',
-                `缺少的信息：${ resolution.missing_fields.join('；') }。`,
-                '请用简短、清晰的中文向用户逐项追问；不要猜测参数，不要声称已调用排版接口。'
-              ].join('\n')
-            }
-          ],
-          toolCalls: ['layout-generate-need-input']
-        }
-      }
-      params = resolution.params
-      params.sheet_infos.forEach(sheet => {
-        sheet.glass_type = 0
-      })
-      params.glass_infos.forEach(glass => {
-        glass.glass_type = 0
-      })
     }
 
-    onProgress?.('正在计算最优排版方案…')
-    const layout = await requestLayout(params)
+    onProgress?.('正在整理订单规格与材质分组…')
+    const resolution = await generateLayoutParamsByModel(userText)
+    if (resolution.missing_fields.length) {
+      return {
+        messages: [
+          ...withLayoutAnalysisPrompt(messages),
+          {
+            role: 'system',
+            content: [
+              '用户希望进行玻璃套料排版，但参数不完整。',
+              `缺少的信息：${ resolution.missing_fields.join('；') }。`,
+              '请用简短、清晰的中文向用户逐项追问；不要猜测参数，不要声称已调用排版接口。'
+            ].join('\n')
+          }
+        ],
+        toolCalls: ['layout-generate-need-input']
+      }
+    }
+
+    onProgress?.('正在匹配本地原片与余料库存…')
+    const schemeCandidates = await createSchemeCandidates(resolution)
+    onProgress?.('正在生成候选方案并调用排版接口试算…')
+    const schemeEvaluation = await resolveSchemeLayouts(schemeCandidates, onProgress)
+    const schemeSummary = createSchemeComparisonSummary(schemeEvaluation.results)
+    const failureSummary = schemeEvaluation.errors.length
+      ? `未成功的候选方案：${ schemeEvaluation.errors.join('；') }`
+      : ''
+    const bestSchemeKey = buildSchemeResultKey(schemeEvaluation.best.scheme)
+    const displaySchemes = schemeEvaluation.results
+      .sort((left, right) => right.score - left.score)
+      .map(item => toLayoutSchemeDisplay(item, bestSchemeKey))
+
     return {
-      layout,
+      layout: {
+        ...schemeEvaluation.best.layout,
+        schemeKey: bestSchemeKey,
+        schemeName: schemeEvaluation.best.scheme.name,
+        schemeDescription: schemeEvaluation.best.scheme.description,
+        bestSchemeKey,
+        schemes: displaySchemes
+      },
       messages: [
-        ...responseMessages,
+        ...layoutPromptMessages,
         {
           role: 'system',
           content: [
-            sourceSummary,
-            '排版已完成，系统已根据排版接口的真实结果在聊天界面展示排版图，并提供图片导出功能。',
-            '你只负责基于以下摘要，用 3～5 条简短、易懂的要点解释利用率、原片方案和废料优化建议。',
+            '系统已基于本地原片与余料库存，先完成候选方案筛选，再对多种方案进行了真实排版试算。',
+            '下方排版图卡片会默认选中综合评分最高的最佳方案，并支持切换查看其他已成功试排的候选方案。',
+            '你只负责基于以下摘要，用 4～6 条简短、易懂的要点解释为什么推荐该方案，并概括备选方案差异。',
             '禁止输出、尝试生成或描述任何图片、SVG、Mermaid、ASCII 图、坐标点位、HTML 表格或原始 JSON。',
-            '禁止声称无法生成图片，也不要提示用户查看你生成的图。',
-            '如需提及图，请明确说明“系统生成的排版图已在下方展示”。',
-            createLayoutSummary(layout)
+            '如需提及图，请明确说明“系统已在下方展示多方案排版图，并默认选中最佳方案”。',
+            schemeSummary,
+            failureSummary,
+            createLayoutSummary(schemeEvaluation.best.layout, schemeEvaluation.best.scheme.name)
           ].filter(Boolean).join('\n\n')
         }
       ],
-      toolCalls: [orderNumber ? 'layout-generate-from-order' : 'layout-generate']
+      toolCalls: ['layout-generate-multi-scheme']
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '未知错误'
     const orderContext = orderNumber ? `订单 ${ orderNumber }` : '本轮请求'
     return {
       messages: [
-        ...responseMessages,
+        ...layoutPromptMessages,
         {
           role: 'system',
           content: `${ orderContext } 的排版生成流程调用失败：${ errorMessage }。请只说明该错误和当前失败步骤，不要引用历史订单，不要补充未经工具返回的数据。`

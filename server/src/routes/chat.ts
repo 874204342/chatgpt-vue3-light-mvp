@@ -4,33 +4,18 @@ import { createNewApiStream } from '../llm/newapi.js'
 import { createGlmStream, resolveGlmWebSearchMessages } from '../llm/glm.js'
 import { resolveMcpMessages } from '../mcp/client.js'
 import { resolveLayoutMessages, shouldGenerateLayout } from '../tools/layoutGenerate.js'
-import { getSaasUser } from './saas.js'
 import { resolveInventoryMessages } from '../tools/inventory.js'
 import { resolveOrderMessages } from '../tools/order.js'
 import { resolveWeatherMessages } from '../tools/weather.js'
 import { type ChatMessage, type ChatRequestBody, extractTextContent } from '../types/chat.js'
 
-const getSaasUserName = (user: Record<string, unknown> | null) => {
-  if (!user) return ''
-  const name = user.nickName || user.userName || user.username || user.tenantUsername
-  return typeof name === 'string' && name.trim() ? name.trim() : ''
-}
-
-const withSaasAuthContext = (request: FastifyRequest, messages: ChatMessage[]) => {
-  const user = getSaasUser(request)
-  const userName = getSaasUserName(user)
-  const authContent = user
-    ? [
-      `当前用户已登录 SaaS${ userName ? `，登录账号为 ${ userName }` : '' }。`,
-      '如果本轮消息中已经提供库存、订单等实时业务数据，必须直接基于这些数据回答。',
-      '业务查询结果必须同时包含简短摘要和 Markdown 明细表，不得只返回摘要；必须保留工具提供的当前页全部明细行，不得合并、省略或虚构记录。',
-      '不要再说用户未登录、无法查询或请先登录。历史对话里如果出现过未登录提示，以当前登录状态为准。'
-    ].join('\n')
-    : [
-      '当前用户尚未登录 SaaS。',
-      '只有在用户明确查询库存、订单等需要登录的业务数据时，才提示先在页面右上角登录。',
-      '普通问答不要主动强调未登录。'
-    ].join('\n')
+const withBusinessDataContext = (messages: ChatMessage[]) => {
+  const authContent = [
+    '当前项目的业务数据查询默认优先使用本地 mock 数据，不再依赖 SaaS 登录态。',
+    '如果本轮消息中已经提供库存、订单等业务明细，必须直接基于这些数据回答。',
+    '业务查询结果必须同时包含简短摘要和 Markdown 明细表，不得只返回摘要；必须保留工具提供的全部明细行，不得合并、省略或虚构记录。',
+    '如果工具明确说明当前没有本地数据，请直接如实告知用户，不要提示登录。'
+  ].join('\n')
 
   const firstSystemIndex = messages.findIndex(message => message.role === 'system')
   if (firstSystemIndex < 0) {
@@ -153,7 +138,7 @@ export const registerChatRoutes = async (app: FastifyInstance) => {
     const resolved = orderResolved.toolCalls.length
       ? orderResolved
       : await resolveMcpMessages(messages, enableMcp)
-    const messagesWithAuth = withSaasAuthContext(request, resolved.messages)
+    const messagesWithAuth = withBusinessDataContext(resolved.messages)
     // 根据模型名称选择上游：glm 开头走智谱 GLM，其余走 DeepSeek。
     // 上游异常时返回 502 + 可读错误信息，便于前端弹窗提示。
     let upstreamResponse: Response

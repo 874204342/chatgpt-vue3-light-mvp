@@ -243,24 +243,20 @@ export const buildLayoutGenerateQuestionTemplate = ({
 
   const stockText = stocks.length
     ? stocks.map(buildStockBlock).join('\n\n')
-    : '暂未提供原片库存，请先结合成品订单的品类、厚度与规格，给出推荐原片规格、备料建议及排版前置分析。'
+    : '当前消息暂未附带原片库存明细。请先结合本地原片库存与余料库存数据，按照成品订单的品类、厚度、规格进行初步筛选，优先判断可直接利用的余料，其次推荐适合的原片规格，并在进入正式排版前说明选料依据、备料建议与预估利用方向。'
 
   const minCutRate = requirements.minCutRate ?? '不限制'
   const breakDistance = requirements.breakDistance ?? 0
   const rotationAllowed = formatRotationAllowed(requirements.rotationAllowed)
   const otherRequirements = requirements.otherRequirements?.trim() || DEFAULT_OTHER_REQUIREMENTS
 
-  return `请协助完成本次玻璃套料排版优化，并基于以下业务数据输出专业、清晰的分析结果。
-
-【任务目标】
-1. 结合成品订单与原片库存，评估可执行的排版方案。
-2. 优先提升原片利用率，并兼顾废料控制与备料合理性。
-3. 如库存不足、规格不匹配或信息缺失，请明确指出。
+  // 输入框只保留用户可见的业务事实与约束条件，执行流程规则统一收敛到后端隐藏提示词中。
+  return `请基于以下业务数据进行玻璃套料排版分析，并给出排版建议。
 
 【成品订单】
 ${ orderText }
 
-【仓库可用原片库存】
+【库存匹配参考】
 ${ stockText }
 
 【套版要求】
@@ -269,11 +265,7 @@ ${ stockText }
 - 是否允许旋转：${ rotationAllowed }
 - 其他要求：${ otherRequirements }
 
-【输出要求】
-请使用简洁、专业的中文进行回复，优先说明：
-1. 推荐采用的原片规格与对应理由。
-2. 排版利用率、主要方案数量及备料建议。
-3. 是否存在库存风险、规格冲突或需要补充确认的信息。`
+请结合以上信息，给出推荐选料方向、排版建议和风险提示。`
 }
 
 export const layoutGenerateQuestionTemplate = buildLayoutGenerateQuestionTemplate({
