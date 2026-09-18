@@ -67,10 +67,30 @@ const searchForm = reactive(createSearchForm())
 
 const rowKey = (row: OrderImportRow) => row.uniqueIndex || `${ row.orderNumber || '' }-${ row.glassName || '' }-${ row.createTime || '' }`
 
+// 勾选统一按“品类 + 厚度”分组，避免导入后增加原片和余料排版的筛选成本。
+const normalizeSelectionText = (value: unknown) => String(value ?? '').trim()
+
+const normalizeSelectionThickness = (value: unknown) => normalizeSelectionText(value).replace(/mm$/i, '')
+
+const buildSelectionGroupKey = (row?: OrderImportRow) => {
+  if (!row) return ''
+  return `${ normalizeSelectionText(row.categoryName) }__${ normalizeSelectionThickness(row.thickness) }`
+}
+
+const activeSelectionGroupKey = computed(() => {
+  const firstSelectedRow = Object.values(selectedRowMap.value)[0]
+  return buildSelectionGroupKey(firstSelectedRow)
+})
+
 const localColumns: DataTableColumns<OrderImportRow> = [
   {
     type: 'selection',
-    multiple: true
+    multiple: true,
+    disabled: (row: OrderImportRow) => {
+      const currentGroupKey = activeSelectionGroupKey.value
+      if (!currentGroupKey) return false
+      return buildSelectionGroupKey(row) !== currentGroupKey
+    }
   },
   {
     title: '品类',
@@ -289,17 +309,24 @@ const handleUpdateCheckedRowKeys = (
   keys: Array<string | number>,
   rows: OrderImportRow[]
 ) => {
+  void keys
   const nextMap = {
     ...selectedRowMap.value
   }
   tableData.value.forEach((row) => {
     delete nextMap[String(rowKey(row))]
   })
-  rows.forEach((row) => {
+  const preservedRows = Object.values(nextMap)
+  const currentGroupKey = buildSelectionGroupKey(preservedRows[0]) || buildSelectionGroupKey(rows[0])
+  const compatibleRows = currentGroupKey
+    ? rows.filter(row => buildSelectionGroupKey(row) === currentGroupKey)
+    : rows
+
+  compatibleRows.forEach((row) => {
     nextMap[String(rowKey(row))] = row
   })
   selectedRowMap.value = nextMap
-  checkedRowKeys.value = keys
+  checkedRowKeys.value = Object.keys(nextMap)
 }
 
 const emitImport = (rows: OrderImportRow[], source: 'local' | 'excel', autoGenerate = false) => {

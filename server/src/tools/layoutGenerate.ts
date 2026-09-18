@@ -129,6 +129,7 @@ export type LayoutParams = {
     grinding_margin: [[number, number], [number, number]]
     new_glass: number
   }>
+  layout_result: null
 }
 
 /** 本地 mockData 中的原片库存记录结构（字段允许为空，读取后统一做归一化）。 */
@@ -210,6 +211,7 @@ type LayoutSchemeCandidate = {
   sheets: InventorySheetCandidate[]
   params: LayoutParams
   sheetMap: Map<number, InventorySheetCandidate>
+  groupProfiles: GroupDemandProfile[]
 }
 
 /** 方案的静态定义：仅描述名称、策略与说明，具体库存筛选在运行时完成。 */
@@ -235,6 +237,13 @@ type SchemeCandidateBuildResult = {
   errors: string[]
 }
 
+type LayoutFailureKind =
+  | 'no-local-inventory'
+  | 'layout-service-failed'
+  | 'all-schemes-failed'
+  | 'candidate-build-failed'
+  | 'unknown'
+
 // 方案字母、策略类型与说明文案统一在此维护，避免只调整顺序后出现 B/C 语义错位。
 // 注意：这里的 name 顺序即最终执行顺序（方案A 余料优先 → 方案B 原片优先 → 方案C 混用）。
 const LAYOUT_SCHEME_DEFINITIONS: LayoutSchemeDefinition[] = [
@@ -258,10 +267,6 @@ const LAYOUT_SCHEME_DEFINITIONS: LayoutSchemeDefinition[] = [
 // 原片 / 余料本地 mock 数据文件路径。库存筛选不经过 HTTP 接口，直接读这两份本地 JSON。
 const rawInventoryPath = path.resolve(serverConfig.workspaceRoot, 'server', 'src', 'mockData', 'raw_inventory.json')
 const offcutInventoryPath = path.resolve(serverConfig.workspaceRoot, 'server', 'src', 'mockData', 'offcut_inventory.json')
-
-// 内存级缓存：首次读取后常驻内存，避免每次排版都重复读文件。服务重启后会重新加载。
-let rawInventoryCache: RawInventoryRecord[] | null = null
-let offcutInventoryCache: OffcutInventoryRecord[] | null = null
 
 /** 取对话中「最后一条用户消息」的纯文本内容（倒序查找，跳过非 user 消息）。 */
 const extractLastUserText = (messages: ChatMessage[]) => {
@@ -360,6 +365,115 @@ const normalizeMaxRawSpecCount = (value: unknown) => {
 /** 将任意值转为去空白的字符串；空值统一返回空串。用于清洗品类/名称/库位等文本字段。 */
 const toNormalizedText = (value: unknown) => String(value || '').trim()
 
+/**
+ * 统一输出排版链路调试日志，便于串联「候选构建 -> 接口请求 -> 接口返回」三段证据。
+ * 这里只打印规格、数量、面积等业务摘要，避免日志过长。
+ */
+const logLayoutDebug = (stage: string, payload: Record<string, unknown>) => {
+  console.log(`[layout-debug][${ stage }] ${ JSON.stringify(payload) }`)
+}
+
+/** 将候选板材压缩为便于排查的摘要结构。 */
+const summarizeCandidateSheets = (items: InventorySheetCandidate[]) => {
+  return items.map(item => ({
+    source: item.source,
+    specification: `${ item.width }x${ item.height }`,
+    quantity: item.quantity,
+    category: item.category,
+    thickness: item.thickness
+  }))
+}
+
+/** 将接口 sheet_infos 压缩为日志摘要，避免直接打印完整请求体。 */
+const summarizeSheetInfosForDebug = (items: LayoutParams['sheet_infos']) => {
+  return items.map(item => ({
+    id: item.id,
+    glass_type: item.glass_type,
+    size: `${ item.size[0] }x${ item.size[1] }`,
+    num: item.num
+  }))
+}
+
+/** 将接口 glass_infos 压缩为日志摘要，便于核对订单需求是否与板材池匹配。 */
+const summarizeGlassInfosForDebug = (items: LayoutParams['glass_infos']) => {
+  return items.map(item => ({
+    id: item.id,
+    glass_type: item.glass_type,
+    size: `${ item.size[0] }x${ item.size[1] }`,
+    num: item.num
+  }))
+}
+
+// 根据后端真实失败信息，向大模型提供更明确的失败类型，避免统一退化成模糊兜底话术。
+const classifyLayoutFailure = (errorMessage: string): LayoutFailureKind => {
+  if (errorMessage.includes('没有可用于排版的本地原片或余料库存')) {
+    return 'no-local-inventory'
+  }
+
+  if (
+    errorMessage.includes('排版接口请求失败')
+    || errorMessage.includes('排版接口返回结果解析失败')
+    || errorMessage.includes('排版接口未返回有效结果')
+    || errorMessage.includes('排版接口业务失败')
+    || errorMessage.includes('排版接口返回空数据')
+    || errorMessage.includes('排版接口返回结构异常')
+    || /fetch failed|aborterror|timeout/iu.test(errorMessage)
+  ) {
+    return 'layout-service-failed'
+  }
+
+  if (errorMessage.startsWith('候选方案全部试排失败：')) {
+    return 'all-schemes-failed'
+  }
+
+  if (errorMessage.startsWith('未生成任何可试排的候选方案：')) {
+    return 'candidate-build-failed'
+  }
+
+  return 'unknown'
+}
+
+const buildLayoutFailureSystemContent = (
+  orderContext: string,
+  errorMessage: string
+) => {
+  const failureKind = classifyLayoutFailure(errorMessage)
+
+  if (failureKind === 'no-local-inventory') {
+    return [
+      `${ orderContext } 未匹配到可用于排版的本地库存：${ errorMessage }。`,
+      '请明确告知用户：当前对应的“品类 + 厚度”在本地原片和余料库存中都没有可用板材，因此本轮无法进入真实试排。',
+      '不要编造综合利用率、用板结构或推荐方案；可建议用户先补充/确认该品类厚度的本地库存，或调整订单材质后再发起排版。'
+    ].join('\n')
+  }
+
+  if (failureKind === 'layout-service-failed') {
+    return [
+      `${ orderContext } 的排版服务调用失败：${ errorMessage }。`,
+      '请明确告知用户：本轮问题出在排版服务未成功返回结果，而不是库存一定缺失。',
+      '不要编造综合利用率、用板结构或推荐方案；可建议用户稍后重试，或先检查排版服务是否可用。'
+    ].join('\n')
+  }
+
+  if (failureKind === 'all-schemes-failed') {
+    return [
+      `${ orderContext } 的候选方案全部试排失败：${ errorMessage }。`,
+      '请明确告知用户：系统已经生成候选方案，但本轮没有任何方案成功完成真实试排。',
+      '请保留失败摘要，不要编造最佳方案、综合利用率或用板结构。'
+    ].join('\n')
+  }
+
+  if (failureKind === 'candidate-build-failed') {
+    return [
+      `${ orderContext } 未生成任何可试排的候选方案：${ errorMessage }。`,
+      '请明确说明当前失败发生在候选方案构建阶段，原因可能是库存约束、原片规格数限制，或当前材质组合下无可用板材。',
+      '不要编造综合利用率、用板结构或推荐方案。'
+    ].join('\n')
+  }
+
+  return `${ orderContext } 的排版生成流程调用失败：${ errorMessage }。请只说明该错误和当前失败步骤，不要引用历史订单，不要补充未经工具返回的数据。`
+}
+
 /** 读取本地 mock JSON 文件并解析出 records 数组；文件格式异常时返回空数组兜底。 */
 const loadMockRecords = async <T>(filePath: string): Promise<T[]> => {
   const content = await readFile(filePath, 'utf-8')
@@ -367,20 +481,14 @@ const loadMockRecords = async <T>(filePath: string): Promise<T[]> => {
   return Array.isArray(parsed.records) ? parsed.records : []
 }
 
-/** 获取原片库存记录（带内存缓存）。 */
+/** 获取原片库存记录。mock 数据要求实时生效，因此这里不做进程内缓存。 */
 const getRawInventoryRecords = async () => {
-  if (!rawInventoryCache) {
-    rawInventoryCache = await loadMockRecords<RawInventoryRecord>(rawInventoryPath)
-  }
-  return rawInventoryCache
+  return loadMockRecords<RawInventoryRecord>(rawInventoryPath)
 }
 
-/** 获取余料库存记录（带内存缓存）。 */
+/** 获取余料库存记录。mock 数据要求实时生效，因此这里不做进程内缓存。 */
 const getOffcutInventoryRecords = async () => {
-  if (!offcutInventoryCache) {
-    offcutInventoryCache = await loadMockRecords<OffcutInventoryRecord>(offcutInventoryPath)
-  }
-  return offcutInventoryCache
+  return loadMockRecords<OffcutInventoryRecord>(offcutInventoryPath)
 }
 
 /**
@@ -558,7 +666,8 @@ const normalizeLayoutResolution = (resolution: LayoutParamsResolution): LayoutPa
       min_cutting_rate: Number(resolution.params.min_cutting_rate) || 0,
       cutting_margin: Number(resolution.params.cutting_margin) || 0,
       sheet_infos: [],
-      glass_infos: normalizedGlassInfos
+      glass_infos: normalizedGlassInfos,
+      layout_result: null
     },
     material_groups: normalizedGroups,
     max_raw_spec_count: normalizeMaxRawSpecCount(resolution.max_raw_spec_count),
@@ -803,6 +912,11 @@ const getInventoryCandidatesByGroup = async (profiles: GroupDemandProfile[]) => 
       return estimateSheetUtilityScore(right, profile) - estimateSheetUtilityScore(left, profile)
     })
 
+    // 输出每个材质分组实际命中的候选库存数量，便于排查筛选链路是否符合预期。
+    console.log(
+      `[layout-debug] category=${ profile.group.category }, thickness=${ profile.group.thickness }mm, rawCandidates=${ raws.length }, offcutCandidates=${ offcuts.length }`
+    )
+
     groupCandidateMap.set(profile.group.glass_type, {
       raws,
       offcuts
@@ -936,6 +1050,20 @@ const createSchemeSheets = (
         maxRawSpecCount
       )
 
+      logLayoutDebug('scheme-offcut-first-selection', {
+        category: profile.group.category,
+        thickness: profile.group.thickness,
+        glassType: profile.group.glass_type,
+        targetArea,
+        totalDemandArea: profile.totalArea,
+        selectedOffcutArea,
+        selectedOffcutCount: selectedOffcuts.length,
+        desiredRawCount,
+        selectedRawCount: selectedRaws.length,
+        selectedOffcuts: summarizeCandidateSheets(selectedOffcuts),
+        selectedRaws: summarizeCandidateSheets(selectedRaws)
+      })
+
       if (!selectedOffcuts.length && !selectedRaws.length) {
         throw new Error(`${ profile.group.category } ${ profile.group.thickness }mm 在当前“原片最多使用规格数”限制下无法生成可用候选原片方案`)
       }
@@ -994,7 +1122,8 @@ const createSchemeSheets = (
 const buildLayoutParamsForScheme = (
   baseParams: LayoutParams,
   schemeDefinition: LayoutSchemeDefinition,
-  sheets: InventorySheetCandidate[]
+  sheets: InventorySheetCandidate[],
+  groupProfiles: GroupDemandProfile[]
 ): LayoutSchemeCandidate => {
   const normalizedSheets = sheets.filter((item, index, array) => {
     return array.findIndex(candidate => (
@@ -1028,7 +1157,8 @@ const buildLayoutParamsForScheme = (
       task_id: `${ baseParams.task_id }-${ Date.now() }-${ schemeDefinition.name }`,
       sheet_infos: sheetInfos
     },
-    sheetMap
+    sheetMap,
+    groupProfiles
   }
 }
 
@@ -1045,6 +1175,7 @@ const createSchemeCandidates = async (
 ): Promise<SchemeCandidateBuildResult> => {
   const profiles = getGroupDemandProfiles(resolution.material_groups, resolution.params.glass_infos)
   const groupCandidateMap = await getInventoryCandidatesByGroup(profiles)
+  const maxRawSpecCount = normalizeMaxRawSpecCount(resolution.max_raw_spec_count)
   const schemes: LayoutSchemeCandidate[] = []
   const errors: string[] = []
 
@@ -1053,7 +1184,8 @@ const createSchemeCandidates = async (
       schemes.push(buildLayoutParamsForScheme(
         resolution.params,
         schemeDefinition,
-        createSchemeSheets(schemeDefinition.kind, profiles, groupCandidateMap, resolution.max_raw_spec_count ?? null)
+        createSchemeSheets(schemeDefinition.kind, profiles, groupCandidateMap, maxRawSpecCount),
+        profiles
       ))
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误'
@@ -1074,7 +1206,7 @@ const createSchemeCandidates = async (
 
   const builtSchemes = [...uniqueSchemes.values()]
   if (!builtSchemes.length) {
-    throw new Error(errors.join('；') || '当前约束下未生成任何可试排的候选方案')
+    throw new Error(`未生成任何可试排的候选方案：${ errors.join('；') || '当前约束下未生成任何候选方案' }`)
   }
 
   return {
@@ -1087,7 +1219,21 @@ const createSchemeCandidates = async (
  * 调用外部排版接口，传入一套方案的完整参数，返回排版结果。
  * 超时 60 秒；非 2xx 响应抛出异常，由上层捕获后记录为「该方案试排失败」。
  */
-const requestLayout = async (params: LayoutParams) => {
+const requestLayout = async (
+  params: LayoutParams,
+  debugContext?: string
+) => {
+  logLayoutDebug('layout-request', {
+    context: debugContext || params.task_id,
+    taskId: params.task_id,
+    minCuttingRate: params.min_cutting_rate,
+    cuttingMargin: params.cutting_margin,
+    sheetCount: params.sheet_infos.length,
+    glassCount: params.glass_infos.length,
+    sheets: summarizeSheetInfosForDebug(params.sheet_infos),
+    glasses: summarizeGlassInfosForDebug(params.glass_infos)
+  })
+
   const response = await fetch('http://192.168.2.189:8088/layout/generate/', {
     method: 'POST',
     headers: {
@@ -1101,7 +1247,145 @@ const requestLayout = async (params: LayoutParams) => {
     throw new Error(`排版接口请求失败：${ response.status }`)
   }
 
-  return JSON.parse(await response.text()) as LayoutResult
+  const responseText = await response.text()
+  try {
+    const parsed = JSON.parse(responseText) as LayoutResult
+    logLayoutDebug('layout-response', {
+      context: debugContext || params.task_id,
+      taskId: params.task_id,
+      status: parsed?.status,
+      msg: parsed?.msg,
+      ratio: parsed?.data?.Ratio,
+      specPlateAreaCount: Array.isArray(parsed?.data?.SpecPlateAreas) ? parsed.data.SpecPlateAreas.length : null
+    })
+    return parsed
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '未知错误'
+    throw new Error(`排版接口返回结果解析失败：${ errorMessage }`)
+  }
+}
+
+/**
+ * 校验排版接口返回体是否可用于后续流程。
+ * 仅 HTTP 200 不代表业务成功，因此这里额外校验业务 status、data 以及 SpecPlateAreas。
+ */
+const assertLayoutResponse = (
+  layout: LayoutResult | null | undefined,
+  contextLabel: string
+) => {
+  if (!layout || typeof layout !== 'object') {
+    throw new Error(`${ contextLabel }排版接口未返回有效结果`)
+  }
+
+  if (Number(layout.status) !== 200) {
+    throw new Error(`${ contextLabel }${ layout.msg || `排版接口业务失败（status=${ String(layout.status || '-') }）` }`)
+  }
+
+  if (!layout.data) {
+    throw new Error(`${ contextLabel }${ layout.msg || '排版接口返回空数据（data=null）' }`)
+  }
+
+  if (!Array.isArray(layout.data.SpecPlateAreas)) {
+    throw new Error(`${ contextLabel }排版接口返回结构异常：缺少 SpecPlateAreas`)
+  }
+
+  return layout
+}
+
+/**
+ * 从一套候选方案中，裁出某个「品类 + 厚度」分组的独立排版请求。
+ * 这里显式只保留当前 glass_type 对应的成品与板材，避免不同厚度被混入同一次接口试排。
+ */
+const buildGroupLayoutParams = (
+  scheme: LayoutSchemeCandidate,
+  profile: GroupDemandProfile
+) => {
+  const groupGlassType = profile.group.glass_type
+  const glassInfos = scheme.params.glass_infos.filter(item => item.glass_type === groupGlassType)
+  const sheetInfos = scheme.params.sheet_infos.filter(item => item.glass_type === groupGlassType)
+
+  if (!glassInfos.length) {
+    throw new Error(`${ profile.group.category } ${ profile.group.thickness }mm 缺少可试排的成品规格`)
+  }
+
+  if (!sheetInfos.length) {
+    throw new Error(`${ profile.group.category } ${ profile.group.thickness }mm 缺少可试排的原片或余料候选`)
+  }
+
+  return {
+    ...scheme.params,
+    task_id: `${ scheme.params.task_id }-group-${ groupGlassType }`,
+    sheet_infos: sheetInfos,
+    glass_infos: glassInfos,
+    layout_result: null
+  }
+}
+
+/**
+ * 校验单个分组试排结果是否仍然命中了当前分组的板材。
+ * 理论上独立请求后不会跨组，但这里再做一次硬校验，便于尽早暴露外部接口异常行为。
+ */
+const assertGroupLayoutMatchesProfile = (
+  layout: LayoutResult,
+  scheme: LayoutSchemeCandidate,
+  profile: GroupDemandProfile
+) => {
+  const invalidPlate = layout.data.SpecPlateAreas.find((plate) => {
+    if (typeof plate.OriginalId !== 'number') return false
+
+    const source = scheme.sheetMap.get(plate.OriginalId)
+    return Boolean(source && source.glassType !== profile.group.glass_type)
+  })
+
+  if (invalidPlate) {
+    throw new Error(`${ profile.group.category } ${ profile.group.thickness }mm 试排结果命中了非当前分组板材`)
+  }
+}
+
+/**
+ * 将各材质分组的独立试排结果合并回同一个方案结果。
+ * 综合利用率按「各原片有效面积 / 各原片总面积」重新计算，保证多分组汇总后口径稳定。
+ */
+const mergeGroupLayouts = (
+  layouts: Array<{
+    profile: GroupDemandProfile
+    layout: LayoutResult
+  }>
+): LayoutResult => {
+  const specPlateAreas = layouts.flatMap(({ profile, layout }, groupIndex) => {
+    const groupPrefix = `${ profile.group.category }-${ profile.group.thickness }mm-${ groupIndex + 1 }`
+
+    return layout.data.SpecPlateAreas.map((plate, plateIndex) => ({
+      ...plate,
+      DuplicateMark: plate.DuplicateMark
+        ? `${ groupPrefix }-${ plate.DuplicateMark }`
+        : `${ groupPrefix }-plate-${ plateIndex + 1 }`,
+      ParentDuplicateMark: plate.ParentDuplicateMark
+        ? `${ groupPrefix }-${ plate.ParentDuplicateMark }`
+        : plate.ParentDuplicateMark
+    }))
+  })
+
+  const totalPlateArea = specPlateAreas.reduce((sum, plate) => sum + plate.Width * plate.Height, 0)
+  const usedPlateArea = specPlateAreas.reduce((sum, plate) => sum + plate.Width * plate.Height * plate.Ratio, 0)
+  const origin = layouts
+    .map(item => item.layout.data.Origin)
+    .filter(Boolean)
+    .join(' | ')
+  const msg = layouts
+    .map(item => item.layout.msg)
+    .filter(Boolean)
+    .join('；')
+
+  return {
+    status: layouts[0]?.layout.status ?? 0,
+    msg: msg || '排版成功',
+    data: {
+      Ratio: totalPlateArea > 0 ? usedPlateArea / totalPlateArea : 0,
+      SpecPlateAreas: specPlateAreas,
+      Origin: origin || 'group-merged'
+    }
+  }
 }
 
 /**
@@ -1193,7 +1477,7 @@ const scoreLayoutScheme = (result: LayoutSchemeCandidate, layout: LayoutResult):
   let totalPlateCount = 0
 
   layout.data.SpecPlateAreas.forEach((plate) => {
-    const count = countPlateUsage(plate)
+    const count = countPlateUsage()
     totalPlateCount += count
     const source = typeof plate.OriginalId === 'number' ? result.sheetMap.get(plate.OriginalId) : null
     if (!source) return
@@ -1318,17 +1602,45 @@ const resolveSchemeLayouts = async (
 
   for (const candidate of schemeCandidates) {
     try {
-      onProgress?.(`正在试排${ candidate.name }…`)
-      const layout = enrichLayoutPlateMeta(await requestLayout(candidate.params), candidate)
-      results.push(scoreLayoutScheme(candidate, layout))
+      const groupLayouts: Array<{
+        profile: GroupDemandProfile
+        layout: LayoutResult
+      }> = []
+
+      for (const profile of candidate.groupProfiles) {
+        const groupLabel = `${ profile.group.category } ${ profile.group.thickness }mm`
+        onProgress?.(`正在试排${ candidate.name }（${ groupLabel }）…`)
+
+        const contextLabel = `${ candidate.name }（${ groupLabel }）：`
+        const groupParams = buildGroupLayoutParams(candidate, profile)
+        const layout = enrichLayoutPlateMeta(
+          assertLayoutResponse(
+            await requestLayout(groupParams, contextLabel),
+            contextLabel
+          ),
+          candidate
+        )
+
+        assertGroupLayoutMatchesProfile(layout, candidate, profile)
+        groupLayouts.push({
+          profile,
+          layout
+        })
+      }
+
+      results.push(scoreLayoutScheme(candidate, mergeGroupLayouts(groupLayouts)))
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误'
+      logLayoutDebug('scheme-layout-failed', {
+        schemeName: candidate.name,
+        errorMessage
+      })
       errors.push(`${ candidate.name }：${ errorMessage }`)
     }
   }
 
   if (!results.length) {
-    throw new Error(errors.join('；') || '候选方案均未排版成功')
+    throw new Error(`候选方案全部试排失败：${ errors.join('；') || '未获取到成功试排结果' }`)
   }
 
   return {
@@ -1481,7 +1793,7 @@ export const resolveLayoutMessages = async (
         ...layoutPromptMessages,
         {
           role: 'system',
-          content: `${ orderContext } 的排版生成流程调用失败：${ errorMessage }。请只说明该错误和当前失败步骤，不要引用历史订单，不要补充未经工具返回的数据。`
+          content: buildLayoutFailureSystemContent(orderContext, errorMessage)
         }
       ],
       toolCalls: ['layout-generate-error']

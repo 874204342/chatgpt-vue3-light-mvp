@@ -64,31 +64,6 @@ const waitingForQueue = ref(false)
 // 排版任务的真实处理阶段，仅在生成正文前临时展示。
 const layoutProgress = ref('')
 
-const WaitTextRender = defineComponent({
-  render() {
-    return (
-      <n-empty
-        size="large"
-        class="font-bold [&_.n-empty\_\_icon]:flex [&_.n-empty\_\_icon]:justify-center"
-      >
-        {{
-          default: () => (
-            <div
-              whitespace-break-spaces
-              text-center
-            >请求排队处理中，请耐心等待...</div>
-          ),
-          icon: () => (
-            <n-icon class="text-30">
-              <div class="i-svg-spinners:clock"></div>
-            </n-icon>
-          )
-        }}
-      </n-empty>
-    )
-  }
-})
-
 const abortReader = () => {
   // 主动中断当前流式读取。
   // 这里除了 cancel reader，还要同步重置内部状态，避免旧的动画继续消费旧缓冲区。
@@ -388,39 +363,68 @@ const emptyPlaceholder = computed(() => {
   //   : '有什么我能帮你的吗？'
 })
 
-// 将后端返回的排版进度文案映射为更稳定的阶段标题与说明，提升加载态体验。
+const processingStageLabels = [
+  '任务接入',
+  '条件校核',
+  '库存匹配',
+  '方案评估'
+]
+
+// 将排队态与排版进度统一映射为一套处理中视图，减少状态切换时的割裂感。
 const layoutProgressMeta = computed(() => {
   const progressText = layoutProgress.value.trim()
 
+  if (waitingForQueue.value && !progressText) {
+    return {
+      badge: '智能排版处理中',
+      title: '正在接入排版服务',
+      caption: '系统已接收本次任务，正在分配计算资源并建立处理队列。',
+      detail: '任务接入后将自动进入排版条件校核，无需重复提交。',
+      stage: 0
+    }
+  }
+
   if (progressText.includes('订单') && progressText.includes('库存')) {
     return {
-      title: '正在核对订单与库存',
-      caption: '已收到本次排版需求，正在匹配符合条件的库存原片。',
-      detail: '正在提取订单品类、厚度与规格信息，并完成库存预筛。'
+      badge: '智能排版处理中',
+      title: '库存资源匹配',
+      caption: '系统正在匹配符合条件的原片与余料库存，并同步校验可用性。',
+      detail: '订单规格已完成提取，库存预筛与可用板材匹配正在推进。',
+      stage: 2
     }
   }
 
   if (progressText.includes('整理') || progressText.includes('解析')) {
     return {
-      title: '正在整理排版条件',
-      caption: '正在校验订单规格、数量与材质信息，即将进入方案计算。',
-      detail: '正在梳理订单规格、材质分组与可用排版参数。'
+      badge: '智能排版处理中',
+      title: '排版条件校核',
+      caption: '系统正在核验订单规格、数量与材质信息，即将进入方案计算。',
+      detail: '规格整理与材质分组已完成，可用排版参数准备中。',
+      stage: 1
     }
   }
 
   if (progressText.includes('计算') || progressText.includes('排版')) {
     return {
-      title: '正在评估排版方案',
-      caption: '正在比对候选原片组合与利用率，稍后返回推荐结果。',
-      detail: '正在计算多组候选方案，并综合评估利用率与备料合理性。'
+      badge: '智能排版处理中',
+      title: '候选方案评估',
+      caption: '系统正在比对候选原片组合与利用率，稍后返回推荐结果。',
+      detail: '多组方案试算已启动，并同步评估利用率与备料合理性。',
+      stage: 3
     }
   }
 
   return {
-    title: '正在为您处理',
+    badge: '智能排版处理中',
+    title: '业务结果生成',
     caption: '系统正在生成业务结果，请稍候。',
-    detail: progressText || '正在执行排版分析流程。'
+    detail: progressText || '排版分析流程已启动。',
+    stage: 3
   }
+})
+
+const showProcessingPanel = computed(() => {
+  return !displayText.value && (waitingForQueue.value || Boolean(layoutProgress.value.trim()))
 })
 </script>
 
@@ -478,42 +482,73 @@ const layoutProgressMeta = computed(() => {
           !displayText && 'flex items-center justify-center'
         ]"
       >
-        <WaitTextRender
-          v-if="waitingForQueue && !displayText"
-        />
-        <template v-else>
+        <template v-if="showProcessingPanel">
           <div
-            v-if="layoutProgress && !displayText"
             class="layout-progress-panel"
           >
             <div
               class="layout-progress-panel__halo"
               aria-hidden="true"
             ></div>
+            <div
+              class="layout-progress-panel__halo layout-progress-panel__halo--secondary"
+              aria-hidden="true"
+            ></div>
             <div class="layout-progress-panel__badge">
-              排版服务处理中
+              {{ layoutProgressMeta.badge }}
             </div>
             <div class="layout-progress-panel__icon">
-              <n-icon class="text-28">
-                <div class="i-svg-spinners:3-dots-rotate"></div>
-              </n-icon>
+              <span class="layout-progress-panel__ring"></span>
+              <span class="layout-progress-panel__ring layout-progress-panel__ring--delay"></span>
+              <span class="layout-progress-panel__core"></span>
+              <span class="layout-progress-panel__spark layout-progress-panel__spark--1"></span>
+              <span class="layout-progress-panel__spark layout-progress-panel__spark--2"></span>
+              <span class="layout-progress-panel__spark layout-progress-panel__spark--3"></span>
             </div>
-            <div class="layout-progress-panel__title">
-              {{ layoutProgressMeta.title }}
-            </div>
-            <div class="layout-progress-panel__caption">
-              {{ layoutProgressMeta.caption }}
-            </div>
-            <div
-              whitespace-break-spaces
-              text-center
-              class="layout-progress-panel__detail"
+            <transition
+              name="processing-state"
+              mode="out-in"
             >
-              {{ layoutProgressMeta.detail }}
+              <div
+                :key="`${ layoutProgressMeta.stage }-${ layoutProgressMeta.title }`"
+                class="layout-progress-panel__content"
+              >
+                <div class="layout-progress-panel__title">
+                  {{ layoutProgressMeta.title }}
+                </div>
+                <div class="layout-progress-panel__caption">
+                  {{ layoutProgressMeta.caption }}
+                </div>
+                <div
+                  whitespace-break-spaces
+                  text-center
+                  class="layout-progress-panel__detail"
+                >
+                  {{ layoutProgressMeta.detail }}
+                </div>
+              </div>
+            </transition>
+            <div class="layout-progress-panel__steps">
+              <div
+                v-for="(stageLabel, stageIndex) in processingStageLabels"
+                :key="stageLabel"
+                class="layout-progress-panel__step"
+                :class="{
+                  'layout-progress-panel__step--active': stageIndex === layoutProgressMeta.stage,
+                  'layout-progress-panel__step--completed': stageIndex < layoutProgressMeta.stage
+                }"
+              >
+                <div class="layout-progress-panel__step-dot"></div>
+                <div class="layout-progress-panel__step-label">
+                  {{ stageLabel }}
+                </div>
+              </div>
             </div>
           </div>
+        </template>
+        <template v-else>
           <n-empty
-            v-else-if="!displayText && showEmptyPlaceholder"
+            v-if="!displayText && showEmptyPlaceholder"
             size="large"
             class="font-bold"
           >
@@ -539,9 +574,6 @@ const layoutProgressMeta = computed(() => {
               class="markdown-wrapper"
               v-html="renderedContent"
             ></div>
-            <WaitTextRender
-              v-if="waitingForQueue"
-            />
             <div
               v-if="readerLoading"
               size-24
@@ -560,40 +592,54 @@ const layoutProgressMeta = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  width: min(100%, 520px);
+  gap: 14px;
+  width: min(100%, 560px);
   margin: 0 auto;
-  padding: 28px 24px;
+  padding: 30px 28px 26px;
   overflow: hidden;
-  border: 1px solid rgb(157 176 225 / 18%);
-  border-radius: 24px;
+  border: 1px solid rgb(154 180 232 / 20%);
+  border-radius: 28px;
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 92%), rgb(244 248 255 / 88%));
+    linear-gradient(180deg, rgb(255 255 255 / 94%), rgb(242 247 255 / 92%));
   box-shadow:
-    0 18px 45px rgb(84 104 156 / 10%),
-    inset 0 1px 0 rgb(255 255 255 / 82%);
+    0 24px 60px rgb(84 104 156 / 11%),
+    inset 0 1px 0 rgb(255 255 255 / 88%);
+  backdrop-filter: blur(18px);
 
   &__halo {
     position: absolute;
-    top: -68px;
-    width: 180px;
-    height: 180px;
+    top: -86px;
+    left: 50%;
+    width: 210px;
+    height: 210px;
     border-radius: 999px;
-    background: radial-gradient(circle, rgb(120 149 219 / 14%), transparent 70%);
+    background: radial-gradient(circle, rgb(120 149 219 / 20%), transparent 70%);
     pointer-events: none;
+    transform: translateX(-50%);
+    animation: layout-panel-halo 5.8s ease-in-out infinite;
+  }
+
+  &__halo--secondary {
+    top: auto;
+    bottom: -116px;
+    width: 260px;
+    height: 260px;
+    background: radial-gradient(circle, rgb(124 182 255 / 10%), transparent 72%);
+    animation-duration: 7s;
+    animation-delay: -2.4s;
   }
 
   &__badge {
     position: relative;
     z-index: 1;
-    padding: 4px 10px;
-    border: 1px solid rgb(146 167 219 / 22%);
+    padding: 5px 12px;
+    border: 1px solid rgb(146 167 219 / 20%);
     border-radius: 999px;
-    background: rgb(255 255 255 / 76%);
-    color: #5b6f95;
+    background: linear-gradient(180deg, rgb(255 255 255 / 86%), rgb(244 248 255 / 78%));
+    color: #55709f;
     font-size: 12px;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.12em;
   }
 
   &__icon {
@@ -602,44 +648,265 @@ const layoutProgressMeta = computed(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 56px;
-    height: 56px;
-    border: 1px solid rgb(157 176 225 / 18%);
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgb(255 255 255 / 88%), rgb(241 246 255 / 82%));
-    color: #5f7ed6;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 84%);
+    width: 74px;
+    height: 74px;
+    border: 1px solid rgb(157 176 225 / 16%);
+    border-radius: 22px;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 94%), rgb(236 244 255 / 84%));
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 88%),
+      0 10px 26px rgb(80 115 194 / 10%);
+  }
+
+  &__ring {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgb(100 137 230 / 24%);
+    border-radius: 999px;
+    animation: layout-panel-ring 2.8s ease-out infinite;
+  }
+
+  &__ring--delay {
+    animation-delay: 1.4s;
+  }
+
+  &__core {
+    position: relative;
+    z-index: 1;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: radial-gradient(circle, #7ca4ff 0%, #5d86eb 62%, #4f73d9 100%);
+    box-shadow:
+      0 0 0 6px rgb(102 140 231 / 12%),
+      0 0 24px rgb(102 140 231 / 28%);
+    animation: layout-panel-core 2.8s ease-in-out infinite;
+  }
+
+  &__spark {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #91b3ff, #6f94f0);
+    box-shadow: 0 0 12px rgb(117 153 240 / 32%);
+    animation: layout-panel-spark 2.6s ease-in-out infinite;
+  }
+
+  &__spark--1 {
+    top: 18px;
+    right: 18px;
+  }
+
+  &__spark--2 {
+    right: 16px;
+    bottom: 18px;
+    animation-delay: 0.9s;
+  }
+
+  &__spark--3 {
+    bottom: 14px;
+    left: 18px;
+    animation-delay: 1.8s;
+  }
+
+  &__content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
   }
 
   &__title {
     position: relative;
     z-index: 1;
     color: #18253d;
-    font-size: 20px;
+    font-size: 21px;
     font-weight: 700;
     line-height: 1.35;
+    letter-spacing: 0.01em;
   }
 
   &__caption {
     position: relative;
     z-index: 1;
-    max-width: 420px;
-    color: #6d7f9a;
+    max-width: 456px;
+    color: #677a9b;
     font-size: 14px;
-    line-height: 1.75;
+    line-height: 1.8;
     text-align: center;
   }
 
   &__detail {
     position: relative;
     z-index: 1;
-    padding: 8px 12px;
+    max-width: 468px;
+    padding: 10px 14px;
     border: 1px solid rgb(157 176 225 / 14%);
-    border-radius: 14px;
-    background: rgb(255 255 255 / 72%);
-    color: #4e6183;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgb(255 255 255 / 82%), rgb(245 249 255 / 76%));
+    color: #587095;
     font-size: 13px;
-    line-height: 1.7;
+    line-height: 1.75;
+  }
+
+  &__steps {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  &__step {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding-top: 4px;
+    color: #93a2bc;
+    text-align: center;
+
+    &::before {
+      position: absolute;
+      top: 9px;
+      left: calc(-50% + 12px);
+      width: calc(100% - 24px);
+      height: 1px;
+      background: linear-gradient(90deg, rgb(170 188 229 / 14%), rgb(170 188 229 / 40%));
+      content: '';
+    }
+
+    &:first-child::before {
+      display: none;
+    }
+  }
+
+  &__step-dot {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border: 2px solid rgb(172 188 222 / 88%);
+    border-radius: 999px;
+    background: rgb(255 255 255 / 94%);
+    box-shadow: 0 0 0 4px rgb(159 177 220 / 10%);
+    transition:
+      border-color 0.28s ease,
+      background 0.28s ease,
+      box-shadow 0.28s ease,
+      transform 0.28s ease;
+  }
+
+  &__step-label {
+    font-size: 12px;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    transition: color 0.28s ease;
+  }
+
+  &__step--completed,
+  &__step--active {
+    color: #5f78a7;
+  }
+
+  &__step--completed &__step-dot {
+    border-color: rgb(111 150 241 / 90%);
+    background: linear-gradient(180deg, #8aaeff, #6f94f0);
+    box-shadow: 0 0 0 5px rgb(111 150 241 / 14%);
+  }
+
+  &__step--active &__step-dot {
+    border-color: rgb(99 136 230 / 95%);
+    background: linear-gradient(180deg, #fff, #dfe9ff);
+    box-shadow:
+      0 0 0 6px rgb(111 150 241 / 16%),
+      0 0 16px rgb(111 150 241 / 18%);
+    transform: scale(1.08);
+  }
+
+  &__step--active &__step-label {
+    color: #47649a;
+    font-weight: 600;
+  }
+}
+
+.processing-state-enter-active,
+.processing-state-leave-active {
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+}
+
+.processing-state-enter-from,
+.processing-state-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+@keyframes layout-panel-halo {
+
+  0%, 100% {
+    opacity: 0.72;
+    transform: translateX(-50%) scale(0.96);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.04);
+  }
+}
+
+@keyframes layout-panel-ring {
+
+  0% {
+    opacity: 0;
+    transform: scale(0.68);
+  }
+
+  25% {
+    opacity: 0.45;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+@keyframes layout-panel-core {
+
+  0%, 100% {
+    transform: scale(0.96);
+    box-shadow:
+      0 0 0 6px rgb(102 140 231 / 12%),
+      0 0 24px rgb(102 140 231 / 24%);
+  }
+
+  50% {
+    transform: scale(1.08);
+    box-shadow:
+      0 0 0 9px rgb(102 140 231 / 16%),
+      0 0 30px rgb(102 140 231 / 32%);
+  }
+}
+
+@keyframes layout-panel-spark {
+
+  0%, 100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
   }
 }
 
@@ -825,16 +1092,17 @@ const layoutProgressMeta = computed(() => {
       z-index: 1;
       display: flex;
       flex-wrap: wrap;
-      align-items: flex-end;
+      align-items: center;
       justify-content: space-between;
-      gap: 12px 20px;
+      gap: 14px 20px;
     }
 
     &__hero-title {
       color: #17233d;
-      font-size: 24px;
+      max-width: min(100%, 720px);
+      font-size: 22px;
       font-weight: 700;
-      line-height: 1.35;
+      line-height: 1.45;
       letter-spacing: 0.01em;
     }
 
@@ -842,7 +1110,12 @@ const layoutProgressMeta = computed(() => {
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 4px;
+      gap: 6px;
+      padding: 12px 14px;
+      border: 1px solid rgb(132 161 227 / 14%);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgb(255 255 255 / 88%), rgb(242 247 255 / 94%));
+      box-shadow: inset 0 1px 0 rgb(255 255 255 / 86%);
     }
 
     &__hero-metric-label {
@@ -864,14 +1137,23 @@ const layoutProgressMeta = computed(() => {
     &__note {
       position: relative;
       z-index: 1;
-      color: #556985;
       font-size: 14px;
-      line-height: 1.8;
+      line-height: 1.82;
+    }
+
+    &__hero-desc {
+      padding: 12px 14px;
+      border: 1px solid rgb(143 166 221 / 10%);
+      border-radius: 16px;
+      background: rgb(255 255 255 / 58%);
+      color: #4e617f;
     }
 
     &__note {
-      padding-top: 12px;
-      border-top: 1px solid rgb(143 166 221 / 12%);
+      padding: 10px 14px;
+      border: 1px dashed rgb(143 166 221 / 18%);
+      border-radius: 14px;
+      background: rgb(247 250 255 / 72%);
       color: #6b7b96;
       font-size: 13px;
     }
@@ -927,6 +1209,16 @@ const layoutProgressMeta = computed(() => {
       border: 1px solid rgb(148 165 206 / 10%);
       border-radius: 16px;
       background: rgb(255 255 255 / 72%);
+      transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+
+      &:hover {
+        transform: translateY(-1px);
+        border-color: rgb(132 161 227 / 18%);
+        box-shadow: 0 10px 20px rgb(74 95 140 / 5%);
+      }
     }
 
     &__item-label {
@@ -1020,18 +1312,21 @@ const layoutProgressMeta = computed(() => {
     }
   }
 
-  @media (max-width: 768px) {
+  @media (width <= 768px) {
+
     .layout-analysis {
+
       &__hero {
         padding: 18px 18px 16px;
       }
 
       &__hero-title {
-        font-size: 20px;
+        font-size: 19px;
       }
 
       &__hero-metric {
         align-items: flex-start;
+        width: 100%;
       }
 
       &__hero-metric-value {
