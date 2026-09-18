@@ -61,6 +61,7 @@ export interface LayoutSchemeDisplay {
   key: string
   name: string
   description: string
+  // 后端已统一为“本次试排的实际用料汇总”，不再展示候选库存池数量。
   materialSummary: string
   score: number
   usedOffcutCount: number
@@ -518,7 +519,7 @@ watch(activeScheme, () => {
           共 {{ scheme.totalPlateCount }} 张，余料 {{ scheme.usedOffcutCount }} 张，原片 {{ scheme.usedRawCount }} 张
         </div>
         <div class="layout-card__scheme-material">
-          {{ scheme.materialSummary }}
+          实际用料：{{ scheme.materialSummary }}
         </div>
       </button>
     </div>
@@ -828,7 +829,8 @@ watch(activeScheme, () => {
     justify-content: center;
     width: fit-content;
     max-width: 100%;
-    padding: 10px;
+    // padding: 10px;
+    padding: 0;
     border: 1px solid rgb(154 174 232 / 12%);
     border-radius: 24px;
     background:

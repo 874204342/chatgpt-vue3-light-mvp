@@ -40,6 +40,7 @@ export type LayoutPromptRequirements = {
   minCutRate?: string | number
   breakDistance?: string | number
   rotationAllowed?: boolean | string | number
+  maxRawSpecCount?: string | number
   otherRequirements?: string
 }
 
@@ -94,6 +95,7 @@ export type CloudOptimizationStrategicConfig = {
   rotationAllowed?: boolean | string | number
   minCutRate?: string | number
   breakDistance?: string | number
+  maxRawSpecCount?: string | number
   otherRequirements?: string
 }
 
@@ -164,6 +166,14 @@ const formatRotationAllowed = (value?: boolean | string | number) => {
   return '是'
 }
 
+const formatMaxRawSpecCount = (value?: string | number) => {
+  if (value === null || value === undefined) return '不限制'
+  const text = String(value).trim()
+  if (!text || /^(不限制|不限)$/u.test(text)) return '不限制'
+  const count = Math.floor(Number(text))
+  return Number.isFinite(count) && count > 0 ? String(count) : '不限制'
+}
+
 const buildOrderBlock = (item: LayoutPromptOrderItem) => {
   return [
     `- 名称：${ formatPrimitiveValue(item.name, '-') }`,
@@ -182,17 +192,6 @@ const buildOrderBlock = (item: LayoutPromptOrderItem) => {
     formatOptionalText(item.specialCraft) ? `  特殊工艺：${ formatOptionalText(item.specialCraft) }` : '',
     formatOptionalText(item.remark) ? `  备注：${ formatOptionalText(item.remark) }` : ''
   ].filter(Boolean).join('\n')
-}
-
-const buildStockBlock = (item: LayoutPromptStockItem) => {
-  return [
-    `- 名称：${ formatPrimitiveValue(item.name, '-') }`,
-    `  规格：${ formatSpec(item.width, item.height) }`,
-    `  库存：${ formatPrimitiveValue(item.quantity) }片`,
-    `  品类：${ formatPrimitiveValue(item.glassType, '-') }`,
-    `  厚度：${ item.thickness === null || item.thickness === undefined || String(item.thickness).trim() === '' ? '-' : `${ String(item.thickness).trim() }mm` }`,
-    `  修边：${ formatEdgingValue(item.edging) }`
-  ].join('\n')
 }
 
 // 云优化“订单导入”会返回一层外层记录，真实单片数据通常挂在 mergdeList 中。
@@ -266,26 +265,23 @@ export const mapStrategicConfigToLayoutPromptRequirements = (
     minCutRate: config.minCutRate ?? '不限制',
     breakDistance: config.breakDistance ?? 0,
     rotationAllowed: config.rotationAllowed,
+    maxRawSpecCount: config.maxRawSpecCount ?? '不限制',
     otherRequirements: config.otherRequirements || DEFAULT_OTHER_REQUIREMENTS
   }
 }
 
 export const buildLayoutGenerateQuestionTemplate = ({
   orders = [],
-  stocks = [],
   requirements = {}
 }: LayoutPromptPayload = {}) => {
   const orderText = orders.length
     ? orders.map(buildOrderBlock).join('\n\n')
     : '暂未提供成品订单，请按以下规范补充待生产玻璃信息：\n- 名称：白玻1\n  规格：1100×1000\n  数量：135片\n  品类：白玻\n  厚度：8mm\n  是否新增：否\n  磨边：0|0|0|0'
 
-  const stockText = stocks.length
-    ? stocks.map(buildStockBlock).join('\n\n')
-    : '请先结合本地原片库存与余料库存数据，按照成品订单的品类、厚度、规格进行初步筛选，优先判断可直接利用的余料，其次推荐适合的原片规格，并在进入正式排版前说明选料依据、备料建议与预估利用方向。'
-
   const minCutRate = requirements.minCutRate ?? '不限制'
   const breakDistance = requirements.breakDistance ?? 0
   const rotationAllowed = formatRotationAllowed(requirements.rotationAllowed)
+  const maxRawSpecCount = formatMaxRawSpecCount(requirements.maxRawSpecCount)
   const otherRequirements = requirements.otherRequirements?.trim() || DEFAULT_OTHER_REQUIREMENTS
 
   // 输入框只保留用户可见的业务事实与约束条件，执行流程规则统一收敛到后端隐藏提示词中。
@@ -294,13 +290,11 @@ export const buildLayoutGenerateQuestionTemplate = ({
 【成品订单】
 ${ orderText }
 
-【库存匹配参考】
-${ stockText }
-
 【套版要求】
 - 最低切裁率：${ minCutRate }
 - 掰片距离：${ breakDistance }
 - 是否允许旋转：${ rotationAllowed }
+- 原片最多使用规格数：${ maxRawSpecCount }
 - 其他要求：${ otherRequirements }
 
 请结合以上信息，给出推荐选料方向、排版建议和风险提示。`
@@ -327,28 +321,11 @@ export const layoutGenerateQuestionTemplate = buildLayoutGenerateQuestionTemplat
       edging: '0|0|0|0'
     }
   ],
-  stocks: [
-    {
-      name: '原片1',
-      width: 3660,
-      height: 2140,
-      quantity: 327,
-      glassType: '白玻',
-      edging: '0|0|0|0'
-    },
-    {
-      name: '原片2',
-      width: 3660,
-      height: 2240,
-      quantity: 300,
-      glassType: '白玻',
-      edging: '0|0|0|0'
-    }
-  ],
   requirements: {
     minCutRate: '不限制',
     breakDistance: 0,
     rotationAllowed: true,
+    maxRawSpecCount: '不限制',
     otherRequirements: DEFAULT_OTHER_REQUIREMENTS
   }
 })

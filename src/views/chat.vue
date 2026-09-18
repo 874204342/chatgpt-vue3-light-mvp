@@ -337,7 +337,7 @@ const placeholder = computed(() => {
   if (stylizingLoading.value) {
     return '正在生成中，可点击右下角按钮中断当前回答...'
   }
-  return '输入订单、库存或排版需求，Enter 发送，Shift + Enter 换行...'
+  return '输入排版、库存或订单需求，Enter 发送，Shift + Enter 换行...'
 })
 
 // 对话区统一使用固定的助手身份文案，避免暴露底层模型细节，保持产品表达更高级克制。
@@ -637,8 +637,8 @@ const PromptTag = defineComponent({
 const promptTextList = ref([
   '打个招呼吧，并告诉我你的名字',
   layoutGenerateQuestionTemplate,
-  inventoryQuestionTemplate,
-  remainderQuestionTemplate
+  // inventoryQuestionTemplate,
+  // remainderQuestionTemplate
   // orderQuestionTemplate
 ])
 
@@ -675,7 +675,7 @@ const promptTextList = ref([
             class="chat-sidebar__inventory-button"
             @click="openInventoryDialog"
           >
-            库存（原片/余料）
+            仓库库存
           </n-button>
         </div>
       </div>

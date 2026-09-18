@@ -39,10 +39,6 @@ const activeTab = ref<InventoryTabKey>('raw')
 const tableMaxHeight = ref(460)
 const RAW_TABLE_SCROLL_X = 1280
 const OFFCUT_TABLE_SCROLL_X = 1180
-const panelRefMap = reactive<Record<InventoryTabKey, HTMLElement | null>>({
-  raw: null,
-  offcut: null
-})
 
 const createSearchForm = (): InventorySearchForm => ({
   keyword: '',
@@ -198,34 +194,13 @@ const offcutColumns: DataTableColumns<OffcutInventoryRow> = [
   }
 ]
 
-const setPanelRef = (tab: InventoryTabKey, el: Element | null) => {
-  panelRefMap[tab] = el instanceof HTMLElement ? el : null
-}
-
 const syncTableLayout = async () => {
   await nextTick()
   if (typeof window === 'undefined') return
 
-  const activePanel = panelRefMap[activeTab.value]
-  const filters = activePanel?.querySelector('.inventory-dialog__filters') as HTMLElement | null
-  const summary = activePanel?.querySelector('.inventory-dialog__summary') as HTMLElement | null
-  const pagination = activePanel?.querySelector('.inventory-dialog__pagination-wrap') as HTMLElement | null
-
-  if (activePanel && filters && summary && pagination) {
-    // 依据当前 Tab 的真实剩余空间计算表格高度，避免把分页区域挤出弹窗可视区。
-    const panelGap = 12 * 3
-    const nextHeight = activePanel.clientHeight
-      - filters.offsetHeight
-      - summary.offsetHeight
-      - pagination.offsetHeight
-      - panelGap
-
-    tableMaxHeight.value = Math.max(nextHeight, 180)
-  }
-  else {
-    // 保底值仅用于首次结构尚未完成挂载的瞬间，避免表格区域塌陷。
-    tableMaxHeight.value = Math.min(Math.max(window.innerHeight - 420, 180), 420)
-  }
+  // 移除汇总卡片后可用空间更充足，适当放宽表格高度上限，
+  // 同时继续为分页和底部按钮保留安全空间。
+  tableMaxHeight.value = Math.min(Math.max(window.innerHeight - 470, 280), 500)
 
   requestAnimationFrame(() => {
     window.dispatchEvent(new Event('resize'))
@@ -352,8 +327,8 @@ onBeforeUnmount(() => {
     class="inventory-dialog-modal"
     :show="show"
     preset="card"
-    title="库存一览"
-    style="width: min(1220px, calc(100vw - 32px));"
+    title="仓库库存"
+    style="width: min(1240px, calc(100vw - 32px)); height: min(760px, calc(100vh - 20px));"
     :bordered="false"
     :segmented="{ content: true }"
     @update:show="emit('update:show', $event)"
@@ -371,90 +346,83 @@ onBeforeUnmount(() => {
           tab="原片库存"
         >
           <div
-            :ref="el => setPanelRef('raw', el)"
             class="inventory-dialog__tab-panel"
           >
-            <n-space
+            <n-form
               class="inventory-dialog__filters"
-              align="end"
-              wrap
-              :size="12"
+              label-placement="left"
+              label-width="auto"
+              :show-feedback="false"
             >
-              <n-form-item
-                label="关键词"
-                style="width: 240px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.raw.keyword"
-                  placeholder="名称、规格、色膜等"
-                />
-              </n-form-item>
-              <n-form-item
-                label="厂家"
-                style="width: 180px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.raw.factoryName"
-                  placeholder="请输入厂家"
-                />
-              </n-form-item>
-              <n-form-item
-                label="品类"
-                style="width: 180px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.raw.categoryName"
-                  placeholder="请输入品类"
-                />
-              </n-form-item>
-              <n-form-item
-                label="厚度"
-                style="width: 140px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.raw.thickness"
-                  placeholder="如 8 / 8mm"
-                />
-              </n-form-item>
-              <n-form-item
-                label="库位"
-                style="width: 180px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.raw.location"
-                  placeholder="请输入库位"
-                />
-              </n-form-item>
-              <n-space>
-                <n-button
-                  type="primary"
-                  @click="handleSearch('raw')"
+              <div class="inventory-dialog__filters-row inventory-dialog__filters-row--primary">
+                <n-form-item
+                  class="inventory-dialog__filter-item inventory-dialog__filter-item--keyword"
+                  label="关键词"
                 >
-                  查询
-                </n-button>
-                <n-button @click="handleReset('raw')">
-                  重置
-                </n-button>
-              </n-space>
-            </n-space>
+                  <n-input
+                    v-model:value="searchFormMap.raw.keyword"
+                    placeholder="名称、规格、色膜等"
+                    @keyup.enter="handleSearch('raw')"
+                  />
+                </n-form-item>
+                <n-form-item
+                  class="inventory-dialog__filter-item"
+                  label="厂家"
+                >
+                  <n-input
+                    v-model:value="searchFormMap.raw.factoryName"
+                    placeholder="请输入厂家"
+                    @keyup.enter="handleSearch('raw')"
+                  />
+                </n-form-item>
+                <n-form-item
+                  class="inventory-dialog__filter-item"
+                  label="品类"
+                >
+                  <n-input
+                    v-model:value="searchFormMap.raw.categoryName"
+                    placeholder="请输入品类"
+                    @keyup.enter="handleSearch('raw')"
+                  />
+                </n-form-item>
+              </div>
 
-            <div class="inventory-dialog__summary">
-              <div class="inventory-dialog__summary-card">
-                <span class="inventory-dialog__summary-label">命中记录</span>
-                <strong class="inventory-dialog__summary-value">{{ rawState.summary.totalRecords }}</strong>
-                <span class="inventory-dialog__summary-unit">条</span>
+              <div class="inventory-dialog__filters-row inventory-dialog__filters-row--secondary">
+                <n-form-item
+                  class="inventory-dialog__filter-item"
+                  label="厚度(mm)"
+                >
+                  <n-input
+                    v-model:value="searchFormMap.raw.thickness"
+                    placeholder="如 8 / 8mm"
+                    @keyup.enter="handleSearch('raw')"
+                  />
+                </n-form-item>
+                <n-form-item
+                  class="inventory-dialog__filter-item"
+                  label="库位"
+                >
+                  <n-input
+                    v-model:value="searchFormMap.raw.location"
+                    placeholder="请输入库位"
+                    @keyup.enter="handleSearch('raw')"
+                  />
+                </n-form-item>
+                <div class="inventory-dialog__filter-actions">
+                  <div class="inventory-dialog__filter-actions-group">
+                    <n-button
+                      type="primary"
+                      @click="handleSearch('raw')"
+                    >
+                      查询
+                    </n-button>
+                    <n-button @click="handleReset('raw')">
+                      重置
+                    </n-button>
+                  </div>
+                </div>
               </div>
-              <div class="inventory-dialog__summary-card">
-                <span class="inventory-dialog__summary-label">库存总量</span>
-                <strong class="inventory-dialog__summary-value">{{ rawState.summary.totalStockQuantity }}</strong>
-                <span class="inventory-dialog__summary-unit">张</span>
-              </div>
-              <div class="inventory-dialog__summary-card">
-                <span class="inventory-dialog__summary-label">库存面积</span>
-                <strong class="inventory-dialog__summary-value">{{ rawState.summary.totalStockArea }}</strong>
-                <span class="inventory-dialog__summary-unit">㎡</span>
-              </div>
-            </div>
+            </n-form>
 
             <div class="inventory-dialog__table-wrap">
               <n-data-table
@@ -489,90 +457,83 @@ onBeforeUnmount(() => {
           tab="余料库存"
         >
           <div
-            :ref="el => setPanelRef('offcut', el)"
             class="inventory-dialog__tab-panel"
           >
-            <n-space
+            <n-form
               class="inventory-dialog__filters"
-              align="end"
-              wrap
-              :size="12"
+              label-placement="left"
+              label-width="auto"
+              :show-feedback="false"
             >
-              <n-form-item
-                label="关键词"
-                style="width: 240px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.offcut.keyword"
-                  placeholder="标签号、规格、色膜等"
-                />
-              </n-form-item>
-              <n-form-item
-                label="厂家"
-                style="width: 180px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.offcut.factoryName"
-                  placeholder="请输入厂家"
-                />
-              </n-form-item>
-              <n-form-item
-                label="品类"
-                style="width: 180px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.offcut.categoryName"
-                  placeholder="请输入品类"
-                />
-              </n-form-item>
-              <n-form-item
-                label="厚度"
-                style="width: 140px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.offcut.thickness"
-                  placeholder="如 8 / 8mm"
-                />
-              </n-form-item>
-              <n-form-item
-                label="库位"
-                style="width: 180px;"
-              >
-                <n-input
-                  v-model:value="searchFormMap.offcut.location"
-                  placeholder="请输入库位"
-                />
-              </n-form-item>
-              <n-space>
-                <n-button
-                  type="primary"
-                  @click="handleSearch('offcut')"
+              <div class="inventory-dialog__filters-row inventory-dialog__filters-row--primary">
+                <n-form-item
+                  class="inventory-dialog__filter-item inventory-dialog__filter-item--keyword"
+                  label="关键词"
                 >
-                  查询
-                </n-button>
-                <n-button @click="handleReset('offcut')">
-                  重置
-                </n-button>
-              </n-space>
-            </n-space>
+                  <n-input
+                    v-model:value="searchFormMap.offcut.keyword"
+                    placeholder="标签号、规格、色膜等"
+                    @keyup.enter="handleSearch('offcut')"
+                  />
+                </n-form-item>
+                <n-form-item
+                  class="inventory-dialog__filter-item"
+                  label="厂家"
+                >
+                  <n-input
+                    v-model:value="searchFormMap.offcut.factoryName"
+                    placeholder="请输入厂家"
+                    @keyup.enter="handleSearch('offcut')"
+                  />
+                </n-form-item>
+                <n-form-item
+                  class="inventory-dialog__filter-item"
+                  label="品类"
+                >
+                  <n-input
+                    v-model:value="searchFormMap.offcut.categoryName"
+                    placeholder="请输入品类"
+                    @keyup.enter="handleSearch('offcut')"
+                  />
+                </n-form-item>
+              </div>
 
-            <div class="inventory-dialog__summary">
-              <div class="inventory-dialog__summary-card">
-                <span class="inventory-dialog__summary-label">命中记录</span>
-                <strong class="inventory-dialog__summary-value">{{ offcutState.summary.totalRecords }}</strong>
-                <span class="inventory-dialog__summary-unit">条</span>
+              <div class="inventory-dialog__filters-row inventory-dialog__filters-row--secondary">
+                <n-form-item
+                  class="inventory-dialog__filter-item"
+                  label="厚度(mm)"
+                >
+                  <n-input
+                    v-model:value="searchFormMap.offcut.thickness"
+                    placeholder="如 8 / 8mm"
+                    @keyup.enter="handleSearch('offcut')"
+                  />
+                </n-form-item>
+                <n-form-item
+                  class="inventory-dialog__filter-item"
+                  label="库位"
+                >
+                  <n-input
+                    v-model:value="searchFormMap.offcut.location"
+                    placeholder="请输入库位"
+                    @keyup.enter="handleSearch('offcut')"
+                  />
+                </n-form-item>
+                <div class="inventory-dialog__filter-actions">
+                  <div class="inventory-dialog__filter-actions-group">
+                    <n-button
+                      type="primary"
+                      @click="handleSearch('offcut')"
+                    >
+                      查询
+                    </n-button>
+                    <n-button @click="handleReset('offcut')">
+                      重置
+                    </n-button>
+                  </div>
+                </div>
               </div>
-              <div class="inventory-dialog__summary-card">
-                <span class="inventory-dialog__summary-label">库存总量</span>
-                <strong class="inventory-dialog__summary-value">{{ offcutState.summary.totalStockQuantity }}</strong>
-                <span class="inventory-dialog__summary-unit">张</span>
-              </div>
-              <div class="inventory-dialog__summary-card">
-                <span class="inventory-dialog__summary-label">库存面积</span>
-                <strong class="inventory-dialog__summary-value">{{ offcutState.summary.totalStockArea }}</strong>
-                <span class="inventory-dialog__summary-unit">㎡</span>
-              </div>
-            </div>
+            </n-form>
 
             <div class="inventory-dialog__table-wrap">
               <n-data-table
@@ -641,47 +602,46 @@ onBeforeUnmount(() => {
 
 .inventory-dialog__filters {
   flex-shrink: 0;
-}
-
-.inventory-dialog__summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.inventory-dialog__summary-card {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 14px 16px;
-  border: 1px solid rgb(157 176 225 / 16%);
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 92%), rgb(246 250 255 / 86%)),
-    radial-gradient(circle at top left, rgb(255 255 255 / 74%), transparent 42%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 76%),
-    0 10px 24px rgb(64 88 150 / 6%);
-  backdrop-filter: blur(14px);
+  flex-direction: column;
+  gap: 12px;
 }
 
-.inventory-dialog__summary-label {
-  color: #6f7f98;
-  font-size: 12px;
+.inventory-dialog__filters-row {
+  display: grid;
+  gap: 12px;
+  align-items: end;
 }
 
-.inventory-dialog__summary-value {
-  color: #1e2e4c;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1;
+.inventory-dialog__filters-row--primary {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
 }
 
-.inventory-dialog__summary-unit {
-  color: #7a89a1;
-  font-size: 12px;
-  font-weight: 600;
+.inventory-dialog__filters-row--secondary {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) auto;
+}
+
+.inventory-dialog__filter-item {
+  width: 100%;
+  min-width: 0;
+  margin-right: 0;
+}
+
+.inventory-dialog__filter-item--keyword {
+  min-width: 260px;
+}
+
+.inventory-dialog__filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
+  min-width: max-content;
+}
+
+.inventory-dialog__filter-actions-group {
+  display: inline-flex;
+  gap: 12px;
 }
 
 .inventory-dialog__table-wrap {
@@ -711,9 +671,13 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: flex-start;
   flex-shrink: 0;
+  padding-bottom: 2px;
 }
 
 .inventory-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   padding-top: 12px;
   border-top: 1px solid rgb(157 176 225 / 12%);
   flex-shrink: 0;
@@ -759,8 +723,46 @@ onBeforeUnmount(() => {
     margin-bottom: 0;
   }
 
+  :deep(.inventory-dialog__filters-row .n-form-item) {
+    display: inline-flex;
+    align-items: center;
+    margin-bottom: 0;
+  }
+
+  :deep(.inventory-dialog__filters-row .n-form-item-label) {
+    padding-bottom: 0;
+    line-height: 32px;
+    white-space: nowrap;
+  }
+
+  :deep(.inventory-dialog__filters-row .n-form-item-blank) {
+    flex: 1;
+  }
+
   :deep(.n-data-table) {
     height: 100%;
+    background: transparent;
+  }
+
+  :deep(.n-data-table-wrapper) {
+    height: 100%;
+  }
+
+  :deep(.n-data-table-base-table-body) {
+    min-height: 120px;
+  }
+
+  :deep(.n-data-table-base-table-header) {
+    background: rgb(244 247 255 / 92%);
+  }
+
+  :deep(.n-data-table-th) {
+    color: #50627f;
+    font-weight: 600;
+  }
+
+  :deep(.n-data-table-td) {
+    background: transparent;
   }
 
   :deep(.n-pagination) {
@@ -806,9 +808,38 @@ onBeforeUnmount(() => {
   }
 }
 
+@media (width <= 1080px) {
+  .inventory-dialog__filters-row--primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inventory-dialog__filters-row--secondary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inventory-dialog__filter-actions {
+    grid-column: 2;
+  }
+}
+
 @media (width <= 900px) {
-  .inventory-dialog__summary {
+  .inventory-dialog__filters-row--primary,
+  .inventory-dialog__filters-row--secondary {
     grid-template-columns: 1fr;
+  }
+
+  .inventory-dialog__filter-item--keyword {
+    min-width: 0;
+  }
+
+  .inventory-dialog__filter-actions {
+    grid-column: auto;
+    justify-self: stretch;
+    justify-content: stretch;
+  }
+
+  .inventory-dialog__filter-actions-group {
+    width: 100%;
   }
 
   .inventory-dialog__pagination-wrap {
