@@ -289,18 +289,21 @@ export const layoutGenerateQuestionTemplate = buildLayoutGenerateQuestionTemplat
   orders: [
     {
       name: '白玻1',
-      width: 1100,
-      height: 1000,
-      quantity: 135,
+      width: 700,
+      height: 1350,
+      quantity: 19,
       glassType: '白玻',
-      edging: '0|0|0|0'
+      thickness: 6,
+      edging: '2|2|2|2'
     },
+    
     {
       name: '白玻2',
       width: 800,
-      height: 950,
-      quantity: 23,
+      height: 1650,
+      quantity: 27,
       glassType: '白玻',
+      thickness: 6,
       edging: '0|0|0|0'
     }
   ],
