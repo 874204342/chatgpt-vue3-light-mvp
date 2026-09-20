@@ -12,7 +12,6 @@ export type LayoutPromptOrderItem = {
   quantity: number | string
   glassType: string
   thickness?: number | string
-  isNew?: boolean | string
   edging?: LayoutEdgingValue
   orderNumber?: string
   productName?: string
@@ -141,18 +140,6 @@ const formatSpec = (width: number | string, height: number | string) => {
   return `${ formatPrimitiveValue(width) }×${ formatPrimitiveValue(height) }`
 }
 
-const formatIsNew = (value?: boolean | string) => {
-  if (typeof value === 'boolean') return value ? '是' : '否'
-  if (typeof value === 'string') {
-    const normalizedValue = value.trim()
-    if (!normalizedValue) return '否'
-    if (normalizedValue === 'true') return '是'
-    if (normalizedValue === 'false') return '否'
-    return normalizedValue
-  }
-  return '否'
-}
-
 const formatRotationAllowed = (value?: boolean | string | number) => {
   if (typeof value === 'boolean') return value ? '是' : '否'
   if (typeof value === 'number') return value === 1 ? '是' : '否'
@@ -181,7 +168,6 @@ const buildOrderBlock = (item: LayoutPromptOrderItem) => {
     `  数量：${ formatPrimitiveValue(item.quantity) }片`,
     `  品类：${ formatPrimitiveValue(item.glassType, '-') }`,
     `  厚度：${ item.thickness === null || item.thickness === undefined || String(item.thickness).trim() === '' ? '-' : `${ String(item.thickness).trim() }mm` }`,
-    `  是否新增：${ formatIsNew(item.isNew) }`,
     `  磨边：${ formatEdgingValue(item.edging) }`,
     formatOptionalText(item.orderNumber) ? `  订单编号：${ formatOptionalText(item.orderNumber) }` : '',
     formatOptionalText(item.productName) ? `  产品名称：${ formatOptionalText(item.productName) }` : '',
@@ -217,7 +203,6 @@ export const mapCloudOptimizationOrderToLayoutPromptItem = (
     quantity: item.unPlateQuantity ?? item.num ?? '',
     glassType: item.categoryName || item.glassCategory || '',
     thickness: item.thickness,
-    isNew: false,
     edging: getSourceEdgingValue(item.productEdgingConfig, item.productEdgingName),
     orderNumber: item.orderNumber || '',
     productName: item.productName || '',
@@ -276,7 +261,7 @@ export const buildLayoutGenerateQuestionTemplate = ({
 }: LayoutPromptPayload = {}) => {
   const orderText = orders.length
     ? orders.map(buildOrderBlock).join('\n\n')
-    : '暂未提供成品订单，请按以下规范补充待生产玻璃信息：\n- 名称：白玻1\n  规格：1100×1000\n  数量：135片\n  品类：白玻\n  厚度：8mm\n  是否新增：否\n  磨边：0|0|0|0'
+    : '暂未提供成品订单，请按以下规范补充待生产玻璃信息：\n- 名称：白玻1\n  规格：1100×1000\n  数量：135片\n  品类：白玻\n  厚度：8mm\n  磨边：0|0|0|0'
 
   const minCutRate = requirements.minCutRate ?? '不限制'
   const breakDistance = requirements.breakDistance ?? 0
@@ -308,7 +293,6 @@ export const layoutGenerateQuestionTemplate = buildLayoutGenerateQuestionTemplat
       height: 1000,
       quantity: 135,
       glassType: '白玻',
-      isNew: false,
       edging: '0|0|0|0'
     },
     {
@@ -317,7 +301,6 @@ export const layoutGenerateQuestionTemplate = buildLayoutGenerateQuestionTemplat
       height: 950,
       quantity: 23,
       glassType: '白玻',
-      isNew: false,
       edging: '0|0|0|0'
     }
   ],

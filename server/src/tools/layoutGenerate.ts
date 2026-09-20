@@ -174,6 +174,7 @@ type LayoutParamsResolution = {
   material_groups: LayoutMaterialGroup[]
   missing_fields: string[]
   max_raw_spec_count?: number | string | null
+  rotation_allowed?: boolean | string | number | null
 }
 
 /** 单个材质分组的需求画像：关联的成品玻璃列表 + 总需求面积，用于后续库存匹配。 */
@@ -181,6 +182,7 @@ type GroupDemandProfile = {
   group: LayoutMaterialGroup
   glassInfos: LayoutParams['glass_infos']
   totalArea: number
+  rotationAllowed: boolean
 }
 
 /**
@@ -212,6 +214,7 @@ type LayoutSchemeCandidate = {
   params: LayoutParams
   sheetMap: Map<number, InventorySheetCandidate>
   groupProfiles: GroupDemandProfile[]
+  rotationAllowed: boolean
 }
 
 /** 方案的静态定义：仅描述名称、策略与说明，具体库存筛选在运行时完成。 */
@@ -229,6 +232,7 @@ type LayoutSchemeResult = {
   usedOffcutCount: number
   usedRawCount: number
   totalPlateCount: number
+  actualStrategyLabel: string
 }
 
 /** 候选方案构建阶段的结果：成功构建的方案列表 + 各方案构建失败的错误信息。 */
@@ -606,6 +610,19 @@ const assertLayoutParamsResolution = (payload: any): LayoutParamsResolution => {
   return payload as LayoutParamsResolution
 }
 
+/** 将用户输入或模型提取出的“是否允许旋转”归一化为布尔值；未明确给出时默认允许旋转。 */
+const normalizeRotationAllowed = (value: unknown) => {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') {
+    const normalizedValue = value.trim().toLowerCase()
+    if (!normalizedValue) return true
+    if (['0', 'false', '否', '不允许', '不可旋转', '禁止'].includes(normalizedValue)) return false
+    if (['1', 'true', '是', '允许', '允许旋转', '可旋转'].includes(normalizedValue)) return true
+  }
+  return true
+}
+
 /**
  * 归一化大模型解析结果，得到结构可靠、可被后续流程直接消费的排版参数。
  *
@@ -613,7 +630,7 @@ const assertLayoutParamsResolution = (payload: any): LayoutParamsResolution => {
  * 1. 材质分组重新编号：glass_type 按出现顺序重映射为 1..N，消除大模型自造的 id 不稳定问题。
  * 2. 清洗成品玻璃：宽高转正数、数量至少 1、磨边参数缺省补 0、glass_type 映射到新编号。
  * 3. sheet_infos 强制置空：原片/余料由后端从本地库存筛选后填充，不信任模型输出。
- * 4. 清洗 max_raw_spec_count 与 missing_fields（去重、去空白）。
+ * 4. 清洗 rotation_allowed、max_raw_spec_count 与 missing_fields（去重、去空白）。
  * 任一组/任一成品规格无效时抛出异常，由上层转为「参数缺失」提示。
  */
 const normalizeLayoutResolution = (resolution: LayoutParamsResolution): LayoutParamsResolution => {
@@ -670,6 +687,7 @@ const normalizeLayoutResolution = (resolution: LayoutParamsResolution): LayoutPa
       layout_result: null
     },
     material_groups: normalizedGroups,
+    rotation_allowed: normalizeRotationAllowed(resolution.rotation_allowed),
     max_raw_spec_count: normalizeMaxRawSpecCount(resolution.max_raw_spec_count),
     missing_fields: Array.from(new Set(
       resolution.missing_fields
@@ -701,12 +719,13 @@ const generateLayoutParamsByModel = async (userText: string) => {
             '你是玻璃套料排版规划参数提取器。',
             '请根据用户提供的信息输出严格 JSON，不要输出解释、Markdown 或代码块。',
             'JSON 必须匹配以下结构：',
-            '{"params":{"task_id":"string","min_cutting_rate":0,"cutting_margin":0,"sheet_infos":[],"glass_infos":[{"id":1001,"glass_type":1,"size":[1100,1000],"num":135,"grinding_margin":[[0,0],[0,0]],"new_glass":0}]},"material_groups":[{"glass_type":1,"category":"白玻","thickness":8}],"missing_fields":[],"max_raw_spec_count":null}',
+            '{"params":{"task_id":"string","min_cutting_rate":0,"cutting_margin":0,"sheet_infos":[],"glass_infos":[{"id":1001,"glass_type":1,"size":[1100,1000],"num":135,"grinding_margin":[[0,0],[0,0]],"new_glass":0}]},"material_groups":[{"glass_type":1,"category":"白玻","thickness":8}],"missing_fields":[],"rotation_allowed":true,"max_raw_spec_count":null}',
             '这里的 sheet_infos 必须始终返回空数组，因为原片和余料库存将由后端根据本地 mock 数据自动筛选。',
             '必须确认：至少一项成品订单的规格和数量；并且每个订单材质分组都要有 category 和 thickness。',
             '若缺少上述信息，写入 missing_fields，并且不要虚构 category、thickness、规格或数量。',
             '同一 category + thickness 的订单必须使用同一个 glass_type；不同分组使用不同 glass_type。',
             '规格格式为宽×高时，size 按 [宽, 高] 输出；数量转为 num；磨边、最低切裁率、掰片距离可按默认值 0 输出；id 用递增整数；task_id 可用当前时间戳字符串。',
+            '如果用户明确给出“是否允许旋转”为是/否，提取为 rotation_allowed 的布尔值；若未提及，默认返回 true。',
             '如果用户明确给出“原片最多使用规格数”，提取为 max_raw_spec_count 的正整数；若未提及或写明“不限制”，返回 null。',
             '原片最多使用规格数不属于必填项，缺失时不要写入 missing_fields。'
           ].join('\n')
@@ -740,7 +759,8 @@ const generateLayoutParamsByModel = async (userText: string) => {
  */
 const getGroupDemandProfiles = (
   materialGroups: LayoutMaterialGroup[],
-  glassInfos: LayoutParams['glass_infos']
+  glassInfos: LayoutParams['glass_infos'],
+  rotationAllowed: boolean
 ) => {
   return materialGroups
     .map((group) => {
@@ -752,7 +772,8 @@ const getGroupDemandProfiles = (
       return {
         group,
         glassInfos: relatedGlassInfos,
-        totalArea
+        totalArea,
+        rotationAllowed
       }
     })
     .filter(item => item.glassInfos.length)
@@ -760,21 +781,37 @@ const getGroupDemandProfiles = (
 
 /**
  * 判断一块板材（原片/余料）是否能放下某块成品玻璃。
- * 允许旋转：只要「正放」或「旋转 90°」任一方向能容纳即可。
+ * 是否允许旋转由订单导入文案中的 rotationAllowed 约束决定。
+ * - 允许旋转：只要「正放」或「旋转 90°」任一方向能容纳即可。
+ * - 不允许旋转：仅按订单原始宽高方向判断。
  */
-const canFitPiece = (sheetWidth: number, sheetHeight: number, pieceWidth: number, pieceHeight: number) => {
-  return (
-    (sheetWidth >= pieceWidth && sheetHeight >= pieceHeight)
-    || (sheetWidth >= pieceHeight && sheetHeight >= pieceWidth)
-  )
+const canFitPiece = (
+  sheetWidth: number,
+  sheetHeight: number,
+  pieceWidth: number,
+  pieceHeight: number,
+  rotationAllowed: boolean
+) => {
+  if (sheetWidth >= pieceWidth && sheetHeight >= pieceHeight) return true
+  if (!rotationAllowed) return false
+
+  return sheetWidth >= pieceHeight && sheetHeight >= pieceWidth
 }
 
 /**
- * 估算一块板材按「正放 / 旋转」两种方向最多能切出多少块指定成品（不考虑排样损耗，仅做整除上限估算）。
+ * 估算一块板材按当前旋转约束最多能切出多少块指定成品（不考虑排样损耗，仅做整除上限估算）。
  * 用于快速评估板材对某成品的承载能力，作为利用率评分的输入。
  */
-const getPieceCapacity = (sheetWidth: number, sheetHeight: number, pieceWidth: number, pieceHeight: number) => {
+const getPieceCapacity = (
+  sheetWidth: number,
+  sheetHeight: number,
+  pieceWidth: number,
+  pieceHeight: number,
+  rotationAllowed: boolean
+) => {
   const direct = Math.floor(sheetWidth / pieceWidth) * Math.floor(sheetHeight / pieceHeight)
+  if (!rotationAllowed) return direct
+
   const rotated = Math.floor(sheetWidth / pieceHeight) * Math.floor(sheetHeight / pieceWidth)
   return Math.max(direct, rotated)
 }
@@ -792,7 +829,13 @@ const estimateSheetUtilityScore = (candidate: InventorySheetCandidate, profile: 
   const bestRatio = profile.glassInfos.reduce((maxRatio, glass) => {
     const pieceWidth = glass.size[0]
     const pieceHeight = glass.size[1]
-    const capacity = getPieceCapacity(candidate.width, candidate.height, pieceWidth, pieceHeight)
+    const capacity = getPieceCapacity(
+      candidate.width,
+      candidate.height,
+      pieceWidth,
+      pieceHeight,
+      profile.rotationAllowed
+    )
     if (!capacity) return maxRatio
 
     const usedArea = Math.min(capacity, glass.num) * pieceWidth * pieceHeight
@@ -863,7 +906,13 @@ const getInventoryCandidatesByGroup = async (profiles: GroupDemandProfile[]) => 
           const height = toPositiveNumber(record.height)
           const quantity = Math.max(1, Math.round(toPositiveNumber(record.stockQuantity)))
           if (!width || !height || !quantity) return null
-          if (!profile.glassInfos.some(glass => canFitPiece(width, height, glass.size[0], glass.size[1]))) return null
+          if (!profile.glassInfos.some(glass => canFitPiece(
+            width,
+            height,
+            glass.size[0],
+            glass.size[1],
+            profile.rotationAllowed
+          ))) return null
 
           return {
             source: 'raw',
@@ -892,7 +941,13 @@ const getInventoryCandidatesByGroup = async (profiles: GroupDemandProfile[]) => 
           const height = toPositiveNumber(record.height)
           const quantity = Math.max(1, Math.round(toPositiveNumber(record.stockQuantity)))
           if (!width || !height || !quantity) return null
-          if (!profile.glassInfos.some(glass => canFitPiece(width, height, glass.size[0], glass.size[1]))) return null
+          if (!profile.glassInfos.some(glass => canFitPiece(
+            width,
+            height,
+            glass.size[0],
+            glass.size[1],
+            profile.rotationAllowed
+          ))) return null
 
           return {
             source: 'offcut',
@@ -1037,8 +1092,8 @@ const createSchemeSheets = (
     }
 
     if (kind === 'offcut-first') {
-      const targetArea = profile.totalArea * 1.15
-      const selectedOffcuts = takeWithAreaTarget(offcuts, targetArea, 6)
+      const targetArea = profile.totalArea * 1.35
+      const selectedOffcuts = takeWithAreaTarget(offcuts, targetArea, 8)
       const selectedOffcutArea = selectedOffcuts.reduce((sum, item) => sum + item.width * item.height * item.quantity, 0)
       const desiredRawCount = selectedOffcuts.length
         ? (selectedOffcutArea >= targetArea ? 0 : Math.min(raws.length, 2))
@@ -1123,7 +1178,8 @@ const buildLayoutParamsForScheme = (
   baseParams: LayoutParams,
   schemeDefinition: LayoutSchemeDefinition,
   sheets: InventorySheetCandidate[],
-  groupProfiles: GroupDemandProfile[]
+  groupProfiles: GroupDemandProfile[],
+  rotationAllowed: boolean
 ): LayoutSchemeCandidate => {
   const normalizedSheets = sheets.filter((item, index, array) => {
     return array.findIndex(candidate => (
@@ -1158,7 +1214,8 @@ const buildLayoutParamsForScheme = (
       sheet_infos: sheetInfos
     },
     sheetMap,
-    groupProfiles
+    groupProfiles,
+    rotationAllowed
   }
 }
 
@@ -1173,7 +1230,12 @@ const buildLayoutParamsForScheme = (
 const createSchemeCandidates = async (
   resolution: LayoutParamsResolution
 ): Promise<SchemeCandidateBuildResult> => {
-  const profiles = getGroupDemandProfiles(resolution.material_groups, resolution.params.glass_infos)
+  const rotationAllowed = normalizeRotationAllowed(resolution.rotation_allowed)
+  const profiles = getGroupDemandProfiles(
+    resolution.material_groups,
+    resolution.params.glass_infos,
+    rotationAllowed
+  )
   const groupCandidateMap = await getInventoryCandidatesByGroup(profiles)
   const maxRawSpecCount = normalizeMaxRawSpecCount(resolution.max_raw_spec_count)
   const schemes: LayoutSchemeCandidate[] = []
@@ -1185,7 +1247,8 @@ const createSchemeCandidates = async (
         resolution.params,
         schemeDefinition,
         createSchemeSheets(schemeDefinition.kind, profiles, groupCandidateMap, maxRawSpecCount),
-        profiles
+        profiles,
+        rotationAllowed
       ))
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '未知错误'
@@ -1406,6 +1469,7 @@ const countPlateUsage = () => {
 const formatCandidateMaterialSummary = (scheme: LayoutSchemeCandidate) => {
   const offcutSpecs = scheme.sheets.filter(item => item.source === 'offcut')
   const rawSpecs = scheme.sheets.filter(item => item.source === 'raw')
+  const rotationSummary = `本轮${ scheme.rotationAllowed ? '允许' : '不允许' }成品旋转排版`
   const offcutSummary = offcutSpecs.length
     ? `余料 ${ offcutSpecs.slice(0, 3).map(item => `${ item.width }×${ item.height }(库存 ${ item.quantity }张)`).join('、') }`
     : '未纳入余料'
@@ -1413,7 +1477,7 @@ const formatCandidateMaterialSummary = (scheme: LayoutSchemeCandidate) => {
     ? `原片 ${ rawSpecs.slice(0, 3).map(item => `${ item.width }×${ item.height }(库存 ${ item.quantity }张)`).join('、') }`
     : '未纳入原片'
 
-  return `${ offcutSummary }；${ rawSummary }`
+  return `${ rotationSummary }；${ offcutSummary }；${ rawSummary }`
 }
 
 /**
@@ -1455,8 +1519,9 @@ const formatActualMaterialSummary = (result: LayoutSchemeResult) => {
     : ''
 
   return [
-    offcutSummary.length ? `余料 ${ formatItems(offcutSummary) }` : '未使用余料',
-    rawSummary.length ? `原片 ${ formatItems(rawSummary) }` : '未使用原片'
+    `本轮${ result.scheme.rotationAllowed ? '允许' : '不允许' }成品旋转排版`,
+    rawSummary.length ? `原片 ${ formatItems(rawSummary) }` : '未使用原片',
+    offcutSummary.length ? `余料 ${ formatItems(offcutSummary) }` : '未使用余料'
   ].join('；')
 }
 
@@ -1471,6 +1536,36 @@ const formatActualMaterialSummary = (result: LayoutSchemeResult) => {
  * - 策略加分：余料优先 +8、混用 +4、原片优先 +0，体现业务对余料消化的偏好。
  * 同时统计该方案的余料/原片/总用板张数，供前端展示与摘要输出。
  */
+const resolveActualStrategyLabel = (
+  kind: SchemeKind,
+  usedOffcutCount: number,
+  usedRawCount: number
+) => {
+  if (kind === 'offcut-first') {
+    return usedOffcutCount > 0
+      ? '实际采用余料优先裁切'
+      : '已优先评估余料，但实际试排未采用余料，最终由原片完成裁切'
+  }
+
+  if (kind === 'mix') {
+    if (usedOffcutCount > 0 && usedRawCount > 0) {
+      return '实际采用余料 + 原片混合裁切'
+    }
+
+    if (usedOffcutCount > 0) {
+      return '候选阶段纳入原片，但实际试排仅采用余料裁切'
+    }
+
+    return '候选阶段纳入余料，但实际试排仅采用原片裁切'
+  }
+
+  if (usedOffcutCount > 0) {
+    return '候选阶段以原片为主，但实际试排同时采用了余料'
+  }
+
+  return '实际采用原片优先裁切'
+}
+
 const scoreLayoutScheme = (result: LayoutSchemeCandidate, layout: LayoutResult): LayoutSchemeResult => {
   let usedOffcutCount = 0
   let usedRawCount = 0
@@ -1494,6 +1589,7 @@ const scoreLayoutScheme = (result: LayoutSchemeCandidate, layout: LayoutResult):
       ? 4
       : 0
   const score = layout.data.Ratio * 1000 + usedOffcutCount * 18 - usedRawCount * 3 + kindBonus
+  const actualStrategyLabel = resolveActualStrategyLabel(result.kind, usedOffcutCount, usedRawCount)
 
   return {
     scheme: result,
@@ -1501,7 +1597,8 @@ const scoreLayoutScheme = (result: LayoutSchemeCandidate, layout: LayoutResult):
     score,
     usedOffcutCount,
     usedRawCount,
-    totalPlateCount
+    totalPlateCount,
+    actualStrategyLabel
   }
 }
 
@@ -1565,6 +1662,7 @@ const createSchemeComparisonSummary = (results: LayoutSchemeResult[]) => {
         `  实际用料：${ formatActualMaterialSummary(item) }`,
         `  综合利用率：${ (item.layout.data.Ratio * 100).toFixed(2) }%`,
         `  实际用板：共 ${ item.totalPlateCount } 张，其中余料 ${ item.usedOffcutCount } 张，原片 ${ item.usedRawCount } 张`,
+        `  实际策略：${ item.actualStrategyLabel }`,
         `  方案特征：${ item.scheme.description }`
       ].join('\n')
     })
@@ -1579,6 +1677,7 @@ const createBestSchemeInventoryMatchSummary = (result: LayoutSchemeResult) => {
   return [
     '最佳方案命中的关键库存匹配项：',
     `- 方案名称：${ result.scheme.name }`,
+    `- 实际策略：${ result.actualStrategyLabel }`,
     `- 候选库存：${ formatCandidateMaterialSummary(result.scheme) }`,
     `- 实际用料：${ formatActualMaterialSummary(result) }`,
     `- 用板结构：余料 ${ result.usedOffcutCount } 张，原片 ${ result.usedRawCount } 张，共 ${ result.totalPlateCount } 张`
@@ -1712,7 +1811,9 @@ export const resolveLayoutMessages = async (
 
     onProgress?.('正在整理订单规格与材质分组…')
     const resolution = await generateLayoutParamsByModel(userText)
+    const rotationAllowed = normalizeRotationAllowed(resolution.rotation_allowed)
     // 若用户给出了「原片最多使用规格数」约束，生成一句话说明，随最终摘要一起回传给大模型。
+    const rotationRuleSummary = `用户约束：本轮${ rotationAllowed ? '允许' : '不允许' }成品旋转排版；若某余料是通过旋转后才适配成品，说明中必须明确写“旋转后可用”，不得直接表述为“放不下”。`
     const rawSpecLimitSummary = resolution.max_raw_spec_count
       ? `用户约束：原片最多使用 ${ resolution.max_raw_spec_count } 种规格，候选方案筛选时已按该上限控制原片规格数。`
       : ''
@@ -1772,8 +1873,11 @@ export const resolveLayoutMessages = async (
             '你只负责基于以下摘要生成最终说明，必须拆成“推荐方案 / 方案优势 / 风险预警 / 备选方案说明”4 个模块，每个模块单独成段，不要输出编号列表。',
             '推荐方案或方案优势模块中，必须明确写出本轮命中的关键库存匹配项，包括优先采用的余料规格、补充使用的原片规格及大致数量结构。',
             '推荐方案模块需突出综合利用率；风险预警模块若存在库存缺口，请明确写出需求数量与可用库存数量。',
+            '请严格遵循用户给出的“是否允许旋转”约束；若本轮允许旋转，不能把“旋转后可用”的余料误写成“放不下”。',
+            '若某候选方案在候选阶段纳入了余料，但实际用板结果中余料张数为 0，不得表述为“余料优先方案”，必须明确写“已评估余料但实际未采用余料，最终由原片完成裁切”。',
             '禁止输出、尝试生成或描述任何图片、SVG、Mermaid、ASCII 图、坐标点位、HTML 表格或原始 JSON。',
             '如需提及图，请明确说明“系统已在下方展示多方案排版图，并默认选中最佳方案”。',
+            rotationRuleSummary,
             rawSpecLimitSummary,
             schemeSummary,
             failureSummary,

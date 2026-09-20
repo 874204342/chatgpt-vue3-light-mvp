@@ -150,6 +150,8 @@ const normalizeInlineMarkdownText = (text: string) => text
   .replace(/\s{2,}/g, ' ')
   .trim()
 
+const escapeRegExpText = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 const normalizeMatchText = (line: string) => normalizeLayoutLine(line)
   .replace(/\*\*/g, '')
   .replace(/__/g, '')
@@ -222,12 +224,58 @@ const extractRecommendationContext = (line: string) => {
 }
 
 const extractSchemeInfo = (text: string) => {
-  const matched = text.match(/[“"「『]?(?:方案)?([A-Z])\s*[：:、 ]\s*([^"”」』，。,；;]+)[”"」』]?/i)
+  const normalizedText = normalizeInlineMarkdownText(text)
+    .replace(/^(?:本轮)?推荐(?:采用|选用|使用)?\s*/i, '')
+    .replace(/^(?:推荐方案|最佳方案)\s*[：:]?\s*/i, '')
+    .trim()
+
+  const quotedMatched = normalizedText.match(/^(?:方案)?([A-Z])\s*[“"「『]\s*([^"”」』]+?)\s*[”"」』]/i)
+  const separatedMatched = normalizedText.match(/^(?:方案)?([A-Z])\s*[：:、|/ -]\s*([^，。,；;]+)/i)
+  const matched = quotedMatched || separatedMatched
 
   return {
     schemeCode: matched?.[1]?.toUpperCase() || '',
     schemeTitle: normalizeInlineMarkdownText(matched?.[2] || '')
   }
+}
+
+const formatSchemeDisplayName = (
+  schemeCode: string,
+  schemeTitle: string,
+  withRecommendationPrefix = false
+) => {
+  const normalizedTitle = normalizeInlineMarkdownText(schemeTitle)
+    .replace(/^[：:，,。；;\s]+/, '')
+    .replace(/[：:，,。；;\s]+$/, '')
+
+  if (schemeCode && normalizedTitle) {
+    return `${ withRecommendationPrefix ? '推荐方案' : '方案' }${ schemeCode }“${ normalizedTitle }”`
+  }
+  if (schemeCode) {
+    return `${ withRecommendationPrefix ? '推荐方案' : '方案' }${ schemeCode }`
+  }
+  return normalizedTitle || (withRecommendationPrefix ? '推荐方案' : '综合表现最优')
+}
+
+const stripLeadingSchemeStatement = (
+  text: string,
+  schemeCode: string,
+  schemeTitle: string
+) => {
+  let normalizedText = normalizeInlineMarkdownText(text)
+    .replace(/^(?:本轮)?推荐(?:采用|选用|使用)?\s*/i, '')
+    .replace(/^(?:推荐方案|最佳方案)\s*[：:]?\s*/i, '')
+    .trim()
+
+  if (schemeCode && schemeTitle) {
+    const escapedTitle = escapeRegExpText(normalizeInlineMarkdownText(schemeTitle))
+    normalizedText = normalizedText.replace(
+      new RegExp(`^[“"「『]?(?:推荐方案|方案)?${ schemeCode }(?:\\s*[：:、|/ -]\\s*|\\s*[“"「『])?\\s*${ escapedTitle }\\s*[”"」』]?`, 'i'),
+      ''
+    )
+  }
+
+  return normalizedText.replace(/^[，,。；:：\s]+/, '').trim()
 }
 
 const transformLayoutSummaryMarkdown = (source: string) => {
@@ -262,7 +310,7 @@ const transformLayoutSummaryMarkdown = (source: string) => {
     }
 
     if (!recommendationLine && recommendationPattern.test(matchText)) {
-      recommendationLine = stripSectionPrefix(normalizedLine, /^(?:推荐方案|最佳方案)\s*/i)
+      recommendationLine = stripSectionPrefix(normalizedLine, /^(?:推荐方案|最佳方案)\s*[：:]?\s*/i)
       return
     }
 
@@ -307,16 +355,23 @@ const transformLayoutSummaryMarkdown = (source: string) => {
   const recommendationHeader = normalizedRecommendation.split(/综合利用率[:：]?\s*(?:约|达)?\s*\d+(?:\.\d+)?%/i)[0] || normalizedRecommendation
   const schemeTitle = extractedSchemeTitle || recommendationHeader
     .replace(/^(?:本轮)?推荐(?:采用|选用|使用)?\s*/i, '')
-    .replace(/[“"「『]?(?:方案)?[A-Z]\s*[：:、 ]\s*/i, '')
+    .replace(/^(?:推荐方案|最佳方案)\s*[：:]?\s*/i, '')
+    .replace(/^(?:方案)?[A-Z](?:\s*[：:、|/ -]\s*|\s*[“"「『])?/i, '')
+    .replace(/^[“"「『]/, '')
     .replace(/[，,。；\s]+$/g, '')
     .trim() || '综合表现最优'
-  const recommendationDetail = normalizedRecommendation
-    .replace(/^(?:本轮)?推荐(?:采用|选用|使用)?\s*/i, '')
-    .replace(/[“"「『]?(?:方案)?[A-Z]\s*[：:、 ]\s*[^"”」』，。,；;]+[”"」』]?/i, '')
+  const recommendationDetail = stripLeadingSchemeStatement(normalizedRecommendation, schemeCode, schemeTitle)
     .replace(/综合利用率[:：]?\s*(?:约|达)?\s*\d+(?:\.\d+)?%\s*[，,。；]?/i, '')
     .replace(/^(?:完成|用于完成|可用于完成)\s*/i, '')
     .replace(/^[，,。；\s]+/, '')
     .trim()
+  const heroTitle = formatSchemeDisplayName(schemeCode, schemeTitle)
+  const recommendationSummary = schemeCode || schemeTitle
+    ? `推荐方案：${ formatSchemeDisplayName(schemeCode, schemeTitle, true) }`
+    : '推荐方案：综合表现最优'
+  const heroDescription = recommendationDetail
+    ? `${ recommendationSummary }。${ recommendationDetail }`
+    : recommendationSummary
 
   const noteHtml = introLines.length
     ? `<div class="layout-analysis__note">${ highlightBusinessText(normalizeInlineMarkdownText(introLines.join(' '))) }</div>`
@@ -326,17 +381,17 @@ const transformLayoutSummaryMarkdown = (source: string) => {
     '<section class="layout-analysis">',
     '<div class="layout-analysis__hero">',
     '<div class="layout-analysis__hero-badge">',
-    schemeCode ? `推荐方案 ${ schemeCode }` : '推荐方案',
+    '推荐方案',
     '</div>',
     '<div class="layout-analysis__hero-main">',
-    `<div class="layout-analysis__hero-title">${ escapeHtml(schemeTitle) }</div>`,
+    `<div class="layout-analysis__hero-title">${ escapeHtml(heroTitle) }</div>`,
     '<div class="layout-analysis__hero-metric">',
     '<span class="layout-analysis__hero-metric-label">综合利用率</span>',
     `<span class="layout-analysis__hero-metric-value">${ ratioMatched[1] }%</span>`,
     '</div>',
     '</div>',
-    recommendationDetail
-      ? `<div class="layout-analysis__hero-desc">${ highlightBusinessText(recommendationDetail) }</div>`
+    heroDescription
+      ? `<div class="layout-analysis__hero-desc">${ highlightBusinessText(heroDescription) }</div>`
       : '',
     noteHtml,
     '</div>',

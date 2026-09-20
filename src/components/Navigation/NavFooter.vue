@@ -9,18 +9,17 @@ withDefaults(
   }
 )
 
-const link = ref('https://github.com/pdsuwwz')
 
 </script>
 
-<template>
+  <!--<template>
   <footer
     class="footer"
     :class="{
       'b-t b-t-solid b-t-#dcdfe6 dark:b-t-#444': showBorder
     }"
   >
-    <!-- <div
+   <div
       class="container"
     >
       <p
@@ -35,9 +34,9 @@ const link = ref('https://github.com/pdsuwwz')
           Wisdom
         </a>
       </p>
-    </div> -->
+    </div> 
   </footer>
-</template>
+</template>-->
 
 <style lang="scss" scoped>
 .footer {
