@@ -155,7 +155,8 @@ export default defineConfig(({ mode }) => {
       alias: [
         {
           find: '@',
-          replacement: path.resolve(__dirname, 'src')
+          // 使用 process.cwd() 兼容 ESM 加载模式（--configLoader runner），__dirname 在该模式下不可用
+          replacement: path.resolve(process.cwd(), 'src')
         }
       ]
     },
