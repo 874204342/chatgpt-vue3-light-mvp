@@ -159,10 +159,9 @@ const normalizeMatchText = (line: string) => normalizeLayoutLine(line)
   .replace(/<\/?[^>]+>/g, '')
   .trim()
 
-const stripSectionPrefix = (line: string, pattern: RegExp) => {
-  const stripped = line.replace(pattern, '').trim()
-  return stripped || line.trim()
-}
+const extractSectionContent = (line: string, pattern: RegExp) => line
+  .replace(pattern, '')
+  .trim()
 
 const highlightBusinessText = (text: string) => escapeHtml(text)
   .replace(/(综合利用率[:：]?\s*)(\d+(?:\.\d+)?%)/g, '$1<span class="layout-analysis__inline-metric">$2</span>')
@@ -293,12 +292,41 @@ const transformLayoutSummaryMarkdown = (source: string) => {
   const riskPattern = /^(?:风险预警|主要风险)/i
   const alternativePattern = /^(?:备选方案(?:说明|差异)?|方案差异|备选说明|执行建议|建议)/i
 
+  type LayoutSectionKey = 'recommendation' | 'advantage' | 'risk' | 'alternative' | ''
+
   let recommendationLine = ''
   const advantageLines: string[] = []
   const riskLines: string[] = []
   const alternativeLines: string[] = []
   const introLines: string[] = []
   const remainingLines: string[] = []
+  let activeSection: LayoutSectionKey = ''
+
+  const appendSectionContent = (section: Exclude<LayoutSectionKey, ''>, text: string) => {
+    const normalizedText = normalizeInlineMarkdownText(text)
+    if (!normalizedText) {
+      return
+    }
+
+    if (section === 'recommendation') {
+      recommendationLine = recommendationLine
+        ? `${ recommendationLine } ${ normalizedText }`
+        : normalizedText
+      return
+    }
+
+    if (section === 'advantage') {
+      advantageLines.push(normalizedText)
+      return
+    }
+
+    if (section === 'risk') {
+      riskLines.push(normalizedText)
+      return
+    }
+
+    alternativeLines.push(normalizedText)
+  }
 
   lines.forEach((line) => {
     const normalizedLine = normalizeLayoutLine(line)
@@ -310,22 +338,32 @@ const transformLayoutSummaryMarkdown = (source: string) => {
     }
 
     if (!recommendationLine && recommendationPattern.test(matchText)) {
-      recommendationLine = stripSectionPrefix(normalizedLine, /^(?:推荐方案|最佳方案)\s*[：:]?\s*/i)
+      // 兼容“标题单独一行、正文在下一行”的模型输出，避免推荐卡片偶发退回普通文本。
+      activeSection = 'recommendation'
+      appendSectionContent('recommendation', extractSectionContent(normalizedLine, /^(?:推荐方案|最佳方案)\s*[：:]?\s*/i))
       return
     }
 
     if (advantagePattern.test(matchText)) {
-      advantageLines.push(stripSectionPrefix(normalizedLine, /^(?:方案优势|排版执行(?:较)?稳定|执行稳定性|订单适配(?:较好|良好)?|订单适配度|订单匹配度)\s*[：:]?\s*/i))
+      activeSection = 'advantage'
+      appendSectionContent('advantage', extractSectionContent(normalizedLine, /^(?:方案优势|排版执行(?:较)?稳定|执行稳定性|订单适配(?:较好|良好)?|订单适配度|订单匹配度)\s*[：:]?\s*/i))
       return
     }
 
     if (riskPattern.test(matchText) || /(?:库存不足|备料缺口|存在缺口|需补料|库存仅)/.test(matchText)) {
-      riskLines.push(stripSectionPrefix(normalizedLine, /^(?:风险预警|主要风险)\s*[：:]?\s*/i))
+      activeSection = 'risk'
+      appendSectionContent('risk', extractSectionContent(normalizedLine, /^(?:风险预警|主要风险)\s*[：:]?\s*/i))
       return
     }
 
     if (alternativePattern.test(matchText)) {
-      alternativeLines.push(stripSectionPrefix(normalizedLine, /^(?:备选方案(?:说明|差异)?|方案差异|备选说明|执行建议|建议)\s*[：:]?\s*/i))
+      activeSection = 'alternative'
+      appendSectionContent('alternative', extractSectionContent(normalizedLine, /^(?:备选方案(?:说明|差异)?|方案差异|备选说明|执行建议|建议)\s*[：:]?\s*/i))
+      return
+    }
+
+    if (activeSection) {
+      appendSectionContent(activeSection, normalizedLine)
       return
     }
 

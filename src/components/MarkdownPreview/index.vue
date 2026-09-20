@@ -1090,15 +1090,17 @@ const showProcessingPanel = computed(() => {
     &__hero-main {
       position: relative;
       z-index: 1;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: start;
-      gap: 16px 22px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px 18px;
     }
 
     &__hero-title {
+      flex: 1 1 420px;
       color: #17233d;
-      max-width: min(100%, 760px);
+      max-width: none;
       font-size: 24px;
       font-weight: 700;
       line-height: 1.4;
@@ -1106,34 +1108,37 @@ const showProcessingPanel = computed(() => {
     }
 
     &__hero-metric {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 8px;
-      min-width: 192px;
-      padding: 16px 18px 14px;
-      border: 1px solid rgb(132 161 227 / 15%);
-      border-radius: 20px;
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 8px 14px;
+      min-height: 48px;
+      border: 1px solid rgb(132 161 227 / 13%);
+      border-radius: 999px;
       background:
-        linear-gradient(180deg, rgb(255 255 255 / 92%), rgb(241 246 255 / 96%));
+        linear-gradient(180deg, rgb(255 255 255 / 92%), rgb(244 248 255 / 96%));
       box-shadow:
-        0 10px 24px rgb(86 110 162 / 8%),
+        0 8px 18px rgb(86 110 162 / 7%),
         inset 0 1px 0 rgb(255 255 255 / 88%);
+      white-space: nowrap;
     }
 
     &__hero-metric-label {
       color: #6d80a3;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
-      letter-spacing: 0.04em;
+      line-height: 1;
+      letter-spacing: 0.02em;
     }
 
     &__hero-metric-value {
       color: #234fcf;
-      font-size: 36px;
+      font-size: 28px;
       font-weight: 800;
-      line-height: 1;
-      letter-spacing: -0.03em;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
     }
 
     &__hero-desc,
@@ -1352,12 +1357,14 @@ const showProcessingPanel = computed(() => {
       }
 
       &__hero-metric {
-        align-items: flex-start;
+        align-items: center;
+        justify-content: center;
         width: 100%;
+        padding: 10px 14px;
       }
 
       &__hero-metric-value {
-        font-size: 30px;
+        font-size: 24px;
       }
 
       &__grid {
