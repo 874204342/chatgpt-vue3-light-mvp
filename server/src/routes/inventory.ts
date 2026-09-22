@@ -31,6 +31,7 @@ type RawInventoryRecord = {
   height?: number
   stockQuantity?: number
   stockArea?: number
+  stockAvgUnitPrice?: number
   lastInboundAt?: string
 }
 

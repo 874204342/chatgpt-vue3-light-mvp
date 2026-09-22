@@ -87,6 +87,43 @@ const scrollConversationToBottom = async () => {
   refConversationContent.value.scrollTop = refConversationContent.value.scrollHeight
 }
 
+const syncComposerTextareaHeight = async () => {
+  await nextTick()
+  const inputInstance = refInputTextString.value
+  const textareaEl = inputInstance?.textareaElRef
+  const wrapperEl = inputInstance?.wrapperElRef
+  if (!textareaEl || !wrapperEl) return
+
+  const computedStyle = window.getComputedStyle(textareaEl)
+  const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0
+  const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0
+  const fontSize = Number.parseFloat(computedStyle.fontSize) || 15
+  const lineHeight = Number.parseFloat(computedStyle.lineHeight) || fontSize * 1.9
+  const minHeight = paddingTop + paddingBottom + lineHeight * 3
+  const maxHeight = paddingTop + paddingBottom + lineHeight * 10
+  const nextHeight = Math.max(minHeight, Math.min(textareaEl.scrollHeight, maxHeight))
+
+  // Naive UI 的 autosize 在快速回删内容时偶尔不会立即回缩，这里补一次镜像与真实 textarea 的高度同步。
+  textareaEl.style.height = 'auto'
+  textareaEl.style.height = `${ nextHeight }px`
+  textareaEl.style.overflowY = textareaEl.scrollHeight > maxHeight ? 'auto' : 'hidden'
+
+  const textareaMirrorEl = wrapperEl.querySelector<HTMLElement>('.n-input__textarea-mirror, [class$="-input__textarea-mirror"]')
+  if (textareaMirrorEl) {
+    textareaMirrorEl.textContent = `${ textareaEl.value || '' }\r\n`
+  }
+}
+
+watch(inputTextString, () => {
+  void syncComposerTextareaHeight()
+}, {
+  flush: 'post'
+})
+
+onMounted(() => {
+  void syncComposerTextareaHeight()
+})
+
 const renderConversationMermaid = async () => {
   await nextTick()
   renderMermaidProcess(scrollConversationToBottom)
@@ -636,7 +673,7 @@ const PromptTag = defineComponent({
 
 const promptTextList = ref([
   '打个招呼吧，并告诉我你的名字',
-  layoutGenerateQuestionTemplate,
+  layoutGenerateQuestionTemplate
   // inventoryQuestionTemplate,
   // remainderQuestionTemplate
   // orderQuestionTemplate

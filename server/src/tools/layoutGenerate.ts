@@ -29,10 +29,19 @@ type LayoutSpecPlateArea = {
   ParentDuplicateMark?: string
   OriginalId?: number
   OriginalType?: number
+  OriginalSource?: 'raw' | 'offcut'
   OriginalLabel?: string
   OriginalCategory?: string
   OriginalThickness?: number
   OriginalSpecification?: string
+  PelList?: Array<{
+    Width: number
+    Height: number
+    WasteFlg: number
+    GlassId?: number
+    GlassType?: number
+    DisplayName?: string
+  }>
 }
 
 /** 排版接口返回的数据主体：综合利用率 + 多张原片套版区域列表。 */
@@ -48,6 +57,7 @@ type LayoutSchemeDisplay = {
   name: string
   description: string
   materialSummary: string
+  estimatedRawMaterialCost: number
   score: number
   usedOffcutCount: number
   usedRawCount: number
@@ -128,6 +138,7 @@ export type LayoutParams = {
     num: number
     grinding_margin: [[number, number], [number, number]]
     new_glass: number
+    display_name?: string
   }>
   layout_result: null
 }
@@ -141,6 +152,7 @@ type RawInventoryRecord = {
   width?: number | string | null
   height?: number | string | null
   stockQuantity?: number | string | null
+  stockAvgUnitPrice?: number | string | null
   location?: string | null
 }
 
@@ -200,6 +212,7 @@ type InventorySheetCandidate = {
   height: number
   quantity: number
   glassType: number
+  unitCost?: number
 }
 
 /** 候选方案类型：余料优先 / 混用 / 原片优先。 */
@@ -229,6 +242,7 @@ type LayoutSchemeResult = {
   scheme: LayoutSchemeCandidate
   layout: LayoutResult
   score: number
+  estimatedRawMaterialCost: number
   usedOffcutCount: number
   usedRawCount: number
   totalPlateCount: number
@@ -247,6 +261,14 @@ type LayoutFailureKind =
   | 'all-schemes-failed'
   | 'candidate-build-failed'
   | 'unknown'
+
+type PromptOrderDisplayMeta = {
+  category: string
+  thickness: number
+  width: number
+  height: number
+  displayName: string
+}
 
 // 方案字母、策略类型与说明文案统一在此维护，避免只调整顺序后出现 B/C 语义错位。
 // 注意：这里的 name 顺序即最终执行顺序（方案A 余料优先 → 方案B 原片优先 → 方案C 混用）。
@@ -593,6 +615,61 @@ const extractJsonObject = (text: string) => {
 }
 
 /**
+ * 从前端拼接好的排版模板文本中提取成品显示名称。
+ * 优先使用“产品名称”，缺失时回退到“名称”，后续再按规格和材质匹配到 glass_infos。
+ */
+const extractPromptOrderDisplayMetas = (userText: string): PromptOrderDisplayMeta[] => {
+  return userText
+    .split(/\r?\n(?=- 名称：)/)
+    .map(item => item.trim())
+    .filter(item => item.startsWith('- 名称：'))
+    .map((block) => {
+      const name = block.match(/(?:^|\n)- 名称：([^\n\r]+)/)?.[1]?.trim() || ''
+      const productName = block.match(/(?:^|\n)\s*产品名称：([^\n\r]+)/)?.[1]?.trim() || ''
+      const specMatch = block.match(/(?:^|\n)\s*规格：\s*([0-9.]+)\s*[×x*]\s*([0-9.]+)/i)
+      const category = block.match(/(?:^|\n)\s*品类：([^\n\r]+)/)?.[1]?.trim() || ''
+      const thicknessText = block.match(/(?:^|\n)\s*厚度：\s*([0-9.]+)\s*mm/i)?.[1]?.trim() || ''
+      const width = Number(specMatch?.[1] || 0)
+      const height = Number(specMatch?.[2] || 0)
+      const thickness = Number(thicknessText || 0)
+      const displayName = productName || name
+
+      if (!displayName || !category || width <= 0 || height <= 0 || thickness <= 0) {
+        return null
+      }
+
+      return {
+        category: toNormalizedText(category),
+        thickness,
+        width,
+        height,
+        displayName
+      }
+    })
+    .filter(Boolean) as PromptOrderDisplayMeta[]
+}
+
+const resolveGlassDisplayName = (
+  orderDisplayMetas: PromptOrderDisplayMeta[],
+  category: string,
+  thickness: number,
+  width: number,
+  height: number
+) => {
+  const matchedNames = Array.from(new Set(
+    orderDisplayMetas
+      .filter(item => item.category === category && item.thickness === thickness && (
+        (item.width === width && item.height === height)
+        || (item.width === height && item.height === width)
+      ))
+      .map(item => item.displayName)
+      .filter(Boolean)
+  ))
+
+  return matchedNames.join('、')
+}
+
+/**
  * 校验大模型返回的排版规划结构是否完整。
  * 仅做「字段存在性 + 数组类型」的粗校验，具体数值归一化交给 normalizeLayoutResolution 处理。
  * 结构不完整时抛出异常，避免后续按 undefined 取字段导致难以定位的运行时错误。
@@ -633,7 +710,10 @@ const normalizeRotationAllowed = (value: unknown) => {
  * 4. 清洗 rotation_allowed、max_raw_spec_count 与 missing_fields（去重、去空白）。
  * 任一组/任一成品规格无效时抛出异常，由上层转为「参数缺失」提示。
  */
-const normalizeLayoutResolution = (resolution: LayoutParamsResolution): LayoutParamsResolution => {
+const normalizeLayoutResolution = (
+  resolution: LayoutParamsResolution,
+  orderDisplayMetas: PromptOrderDisplayMeta[] = []
+): LayoutParamsResolution => {
   const normalizedGroups = resolution.material_groups
     .map((group, index) => ({
       glass_type: index + 1,
@@ -657,6 +737,7 @@ const normalizeLayoutResolution = (resolution: LayoutParamsResolution): LayoutPa
       const height = toPositiveNumber(glass.size?.[1])
       const num = Math.max(1, Math.round(toPositiveNumber(glass.num)))
       const mappedType = groupTypeMap.get(Number(glass.glass_type))
+      const groupMeta = mappedType ? normalizedGroups[mappedType - 1] : null
 
       if (!mappedType || width <= 0 || height <= 0) return null
 
@@ -668,7 +749,16 @@ const normalizeLayoutResolution = (resolution: LayoutParamsResolution): LayoutPa
         grinding_margin: Array.isArray(glass.grinding_margin) && glass.grinding_margin.length === 2
           ? glass.grinding_margin
           : [[0, 0], [0, 0]],
-        new_glass: Number(glass.new_glass) || 0
+        new_glass: Number(glass.new_glass) || 0,
+        display_name: groupMeta
+          ? resolveGlassDisplayName(
+            orderDisplayMetas,
+            groupMeta.category,
+            groupMeta.thickness,
+            width,
+            height
+          ) || undefined
+          : undefined
       }
     })
     .filter(Boolean) as LayoutParams['glass_infos']
@@ -703,6 +793,7 @@ const normalizeLayoutResolution = (resolution: LayoutParamsResolution): LayoutPa
  * 注意：这里要求模型把 sheet_infos 恒返回空数组，原片/余料由后端本地库存筛选，避免模型凭空捏造库存。
  */
 const generateLayoutParamsByModel = async (userText: string) => {
+  const orderDisplayMetas = extractPromptOrderDisplayMetas(userText)
   const response = await fetch(`${ serverConfig.newApiBaseUrl }/v1/chat/completions`, {
     method: 'POST',
     headers: {
@@ -749,7 +840,10 @@ const generateLayoutParamsByModel = async (userText: string) => {
     throw new Error('排版参数解析模型未返回内容')
   }
 
-  return normalizeLayoutResolution(assertLayoutParamsResolution(extractJsonObject(content)))
+  return normalizeLayoutResolution(
+    assertLayoutParamsResolution(extractJsonObject(content)),
+    orderDisplayMetas
+  )
 }
 
 /**
@@ -864,6 +958,24 @@ const aggregateInventoryCandidates = (items: InventorySheetCandidate[]) => {
     const current = merged.get(key)
 
     if (current) {
+      const currentQuantity = current.quantity
+      const nextQuantity = item.quantity
+      const currentUnitCost = typeof current.unitCost === 'number' && Number.isFinite(current.unitCost)
+        ? current.unitCost
+        : null
+      const nextUnitCost = typeof item.unitCost === 'number' && Number.isFinite(item.unitCost)
+        ? item.unitCost
+        : null
+
+      // 同规格原片可能来自不同库位且单价不同，这里按库存张数做加权均价，避免后续成本口径失真。
+      if (currentUnitCost !== null && nextUnitCost !== null) {
+        current.unitCost = (
+          (currentUnitCost * currentQuantity) + (nextUnitCost * nextQuantity)
+        ) / (currentQuantity + nextQuantity)
+      } else if (currentUnitCost === null && nextUnitCost !== null) {
+        current.unitCost = nextUnitCost
+      }
+
       current.quantity += item.quantity
       current.label = `${ current.label } / ${ item.label }`
       current.location = `${ current.location } / ${ item.location }`
@@ -924,7 +1036,8 @@ const getInventoryCandidatesByGroup = async (profiles: GroupDemandProfile[]) => 
             width,
             height,
             quantity,
-            glassType: profile.group.glass_type
+            glassType: profile.group.glass_type,
+            unitCost: toPositiveNumber(record.stockAvgUnitPrice) || undefined
           }
         })
         .filter(Boolean) as InventorySheetCandidate[]
@@ -1364,7 +1477,9 @@ const buildGroupLayoutParams = (
   profile: GroupDemandProfile
 ) => {
   const groupGlassType = profile.group.glass_type
-  const glassInfos = scheme.params.glass_infos.filter(item => item.glass_type === groupGlassType)
+  const glassInfos = scheme.params.glass_infos
+    .filter(item => item.glass_type === groupGlassType)
+    .map(({ display_name, ...item }) => item)
   const sheetInfos = scheme.params.sheet_infos.filter(item => item.glass_type === groupGlassType)
 
   if (!glassInfos.length) {
@@ -1566,7 +1681,21 @@ const resolveActualStrategyLabel = (
   return '实际采用原片优先裁切'
 }
 
+const calculateRawSheetCost = (sheet: InventorySheetCandidate) => {
+  const unitCost = typeof sheet.unitCost === 'number' && Number.isFinite(sheet.unitCost)
+    ? sheet.unitCost
+    : null
+
+  if (sheet.source !== 'raw' || unitCost === null) {
+    return 0
+  }
+
+  // 原片单价按每平方米计价，单张成本 = 单位面积成本 × 原片面积。
+  return unitCost * ((sheet.width * sheet.height) / 1_000_000)
+}
+
 const scoreLayoutScheme = (result: LayoutSchemeCandidate, layout: LayoutResult): LayoutSchemeResult => {
+  let estimatedRawMaterialCost = 0
   let usedOffcutCount = 0
   let usedRawCount = 0
   let totalPlateCount = 0
@@ -1581,6 +1710,7 @@ const scoreLayoutScheme = (result: LayoutSchemeCandidate, layout: LayoutResult):
       return
     }
     usedRawCount += count
+    estimatedRawMaterialCost += calculateRawSheetCost(source) * count
   })
 
   const kindBonus = result.kind === 'offcut-first'
@@ -1595,6 +1725,7 @@ const scoreLayoutScheme = (result: LayoutSchemeCandidate, layout: LayoutResult):
     scheme: result,
     layout,
     score,
+    estimatedRawMaterialCost,
     usedOffcutCount,
     usedRawCount,
     totalPlateCount,
@@ -1608,6 +1739,13 @@ const scoreLayoutScheme = (result: LayoutSchemeCandidate, layout: LayoutResult):
  * 使前端能显示真实原片信息，而不是退化成「原片1/原片2」这类无业务含义的标题。
  */
 const enrichLayoutPlateMeta = (layout: LayoutResult, scheme: LayoutSchemeCandidate) => {
+  const glassDisplayNameMap = new Map<number, string>()
+  scheme.params.glass_infos.forEach((item) => {
+    if (typeof item.id === 'number' && item.display_name) {
+      glassDisplayNameMap.set(item.id, item.display_name)
+    }
+  })
+
   layout.data.SpecPlateAreas.forEach((plate) => {
     const source = typeof plate.OriginalId === 'number' ? scheme.sheetMap.get(plate.OriginalId) : null
     if (!source) return
@@ -1617,6 +1755,16 @@ const enrichLayoutPlateMeta = (layout: LayoutResult, scheme: LayoutSchemeCandida
     plate.OriginalCategory = source.category
     plate.OriginalThickness = source.thickness
     plate.OriginalSpecification = `${ source.width }×${ source.height }`
+    plate.OriginalSource = source.source
+
+    // 成品块回填加工产品名称，前端绘图时即可直接展示，不再依赖额外映射。
+    plate.PelList?.forEach((pel) => {
+      if (pel.WasteFlg === 1 || typeof pel.GlassId !== 'number') return
+      const displayName = glassDisplayNameMap.get(pel.GlassId)
+      if (displayName) {
+        pel.DisplayName = displayName
+      }
+    })
   })
 
   return layout
@@ -1636,6 +1784,7 @@ const toLayoutSchemeDisplay = (result: LayoutSchemeResult, bestSchemeKey: string
     name: result.scheme.name,
     description: result.scheme.description,
     materialSummary: formatActualMaterialSummary(result),
+    estimatedRawMaterialCost: Number(result.estimatedRawMaterialCost.toFixed(2)),
     score: Number(result.score.toFixed(2)),
     usedOffcutCount: result.usedOffcutCount,
     usedRawCount: result.usedRawCount,
@@ -1662,6 +1811,7 @@ const createSchemeComparisonSummary = (results: LayoutSchemeResult[]) => {
         `  实际用料：${ formatActualMaterialSummary(item) }`,
         `  综合利用率：${ (item.layout.data.Ratio * 100).toFixed(2) }%`,
         `  实际用板：共 ${ item.totalPlateCount } 张，其中余料 ${ item.usedOffcutCount } 张，原片 ${ item.usedRawCount } 张`,
+        `  预计原片成本：¥ ${ item.estimatedRawMaterialCost.toFixed(2) }`,
         `  实际策略：${ item.actualStrategyLabel }`,
         `  方案特征：${ item.scheme.description }`
       ].join('\n')
@@ -1680,7 +1830,8 @@ const createBestSchemeInventoryMatchSummary = (result: LayoutSchemeResult) => {
     `- 实际策略：${ result.actualStrategyLabel }`,
     `- 候选库存：${ formatCandidateMaterialSummary(result.scheme) }`,
     `- 实际用料：${ formatActualMaterialSummary(result) }`,
-    `- 用板结构：余料 ${ result.usedOffcutCount } 张，原片 ${ result.usedRawCount } 张，共 ${ result.totalPlateCount } 张`
+    `- 用板结构：余料 ${ result.usedOffcutCount } 张，原片 ${ result.usedRawCount } 张，共 ${ result.totalPlateCount } 张`,
+    `- 预计原片成本：¥ ${ result.estimatedRawMaterialCost.toFixed(2) }`
   ].join('\n')
 }
 

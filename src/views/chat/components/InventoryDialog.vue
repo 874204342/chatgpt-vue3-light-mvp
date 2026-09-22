@@ -37,7 +37,7 @@ const emit = defineEmits<{
 const message = useMessage()
 const activeTab = ref<InventoryTabKey>('raw')
 const tableMaxHeight = ref(460)
-const RAW_TABLE_SCROLL_X = 1280
+const RAW_TABLE_SCROLL_X = 1400
 const OFFCUT_TABLE_SCROLL_X = 1180
 
 const createSearchForm = (): InventorySearchForm => ({
@@ -87,6 +87,11 @@ const formatSpecification = (width?: string | number | null, height?: string | n
   return `${ width } × ${ height }`
 }
 
+const formatUnitPrice = (value?: number | null) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+  return value.toFixed(2)
+}
+
 const rawColumns: DataTableColumns<RawInventoryRow> = [
   {
     title: '原片名称',
@@ -126,6 +131,12 @@ const rawColumns: DataTableColumns<RawInventoryRow> = [
     title: '库存面积(㎡)',
     key: 'stockArea',
     width: 120
+  },
+  {
+    title: '单价(元/㎡)',
+    key: 'stockAvgUnitPrice',
+    width: 130,
+    render: row => formatUnitPrice(row.stockAvgUnitPrice)
   },
   {
     title: '库位',
