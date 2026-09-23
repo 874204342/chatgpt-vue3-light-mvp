@@ -1,10 +1,15 @@
 <script lang="tsx" setup>
 import { renderMarkdownText, renderMermaidProcess } from '@/components/MarkdownPreview/plugins/markdown'
-import { type ChatContentPart, type ChatMessage, triggerModelTermination } from '@/components/MarkdownPreview/models'
-import { type OrderImportRow, downloadOrderImportTemplate, uploadOrderImportExcelPreview } from '@/api/order-import'
+import { type ChatMessage, triggerModelTermination } from '@/components/MarkdownPreview/models'
+import {
+  type OrderImportRow,
+  downloadOrderImportTemplate,
+  uploadOrderImportExcelPreview,
+  uploadOrderImportImage
+} from '@/api/order-import'
 import { type InputInst } from 'naive-ui'
 import { useConversationStore } from '@/store/hooks/useConversationStore'
-import { fileToBase64, imageFileToDataUrl } from '@/utils/files-tool'
+import { fileToBase64 } from '@/utils/files-tool'
 import InventoryDialog from '@/views/chat/components/InventoryDialog.vue'
 import OrderImportDialog from '@/views/chat/components/OrderImportDialog.vue'
 import {
@@ -36,6 +41,7 @@ setTimeout(() => {
 
 const stylizingLoading = ref(false)
 const excelQuickImportLoading = ref(false)
+const imageQuickImportLoading = ref(false)
 const message = useMessage()
 const inventoryDialogVisible = ref(false)
 const orderImportDialogVisible = ref(false)
@@ -50,12 +56,6 @@ const renameConversationValue = ref('')
  */
 const inputTextString = ref('')
 const refInputTextString = ref<InputInst | null>()
-type PendingAttachment = {
-  dataUrl: string
-  name: string
-}
-
-const pendingAttachments = ref<PendingAttachment[]>([])
 const refFileInput = ref<HTMLInputElement | null>()
 const refExcelImportInput = ref<HTMLInputElement | null>()
 const pendingLayout = ref<LayoutResult | null>(null)
@@ -208,22 +208,8 @@ const handleCreateStylized = async () => {
   }
 
   const textContent = inputTextString.value
-  const textPart: ChatContentPart = {
-    type: 'text',
-    text: textContent
-  }
-  const imageParts: ChatContentPart[] = pendingAttachments.value.map(item => ({
-    type: 'image_url',
-    image_url: {
-      url: item.dataUrl
-    }
-  }))
-  pendingAttachments.value = []
   inputTextString.value = ''
-
-  const content: ChatMessage['content'] = imageParts.length
-    ? [textPart, ...imageParts]
-    : textContent
+  const content: ChatMessage['content'] = textContent
 
   const currentConversation = conversationStore.ensureActiveConversation(businessStore.systemModelName)
   const currentConversationId = currentConversation.id
@@ -277,6 +263,10 @@ const handleOpenImageUpload = () => {
     message.warning('请等待当前对话完成后再上传文件')
     return
   }
+  if (imageQuickImportLoading.value) {
+    message.warning('订单图片识别中，请稍候')
+    return
+  }
   composerActionVisible.value = false
   refFileInput.value?.click()
 }
@@ -304,7 +294,7 @@ const handleDownloadExcelTemplate = async () => {
 const handleImportOrders = async (payload: {
   rows: OrderImportRow[]
   autoGenerate?: boolean
-  source: 'local' | 'excel'
+  source: 'local' | 'excel' | 'image'
 }) => {
   const orders = mapCloudOptimizationOrdersToLayoutPromptItems(payload?.rows || [])
     .filter(item => String(item.name || '').trim())
@@ -419,19 +409,49 @@ const getUserMessageImages = (content: ChatMessage['content']) => {
 
 const handleUploadFile = (event: Event) => {
   const input = event.target as HTMLInputElement
-  const files = input.files
-  if (!files) return
+  const file = input.files?.[0]
+  if (!file) return
 
-  Array.from(files).forEach(async (file) => {
-    if (!file.type.startsWith('image/')) return
-    const dataUrl = await imageFileToDataUrl(file)
-    pendingAttachments.value.push({
-      dataUrl,
-      name: file.name
-    })
-  })
+  if (!file.type.startsWith('image/')) {
+    message.warning('请上传图片文件')
+    input.value = ''
+    return
+  }
 
-  input.value = ''
+  void (async () => {
+    imageQuickImportLoading.value = true
+    try {
+      const fileContent = await fileToBase64(file)
+      const response = await uploadOrderImportImage({
+        fileName: file.name,
+        fileContent,
+        mimeType: file.type
+      })
+
+      if (response?.code !== 200) {
+        message.warning(response?.message || '订单图片识别失败，请重新上传')
+        return
+      }
+
+      const rows = response?.data?.rows || []
+      if (!rows.length) {
+        message.warning(response?.message || '未识别到可分析的有效订单')
+        return
+      }
+
+      await handleImportOrders({
+        rows,
+        source: 'image'
+      })
+      message.success(response?.message || '订单图片识别完成，已生成排版文案')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '订单图片识别失败，请重新上传'
+      message.warning(errorMessage)
+    } finally {
+      imageQuickImportLoading.value = false
+      input.value = ''
+    }
+  })()
 }
 
 const handleExcelQuickImport = async (event: Event) => {
@@ -482,10 +502,6 @@ const handleExcelQuickImport = async (event: Event) => {
   }
 }
 
-const handleRemoveAttachment = (index: number) => {
-  pendingAttachments.value.splice(index, 1)
-}
-
 const formatConversationTime = (value: string) => {
   if (!value) return ''
 
@@ -519,7 +535,6 @@ const handleCreateConversation = () => {
     model: businessStore.systemModelName
   })
   inputTextString.value = ''
-  pendingAttachments.value = []
   nextTick(() => {
     refInputTextString.value?.focus()
   })
@@ -530,7 +545,6 @@ const handleSwitchConversation = (conversationId: string) => {
 
   conversationStore.switchConversation(conversationId)
   inputTextString.value = ''
-  pendingAttachments.value = []
   nextTick(() => {
     refInputTextString.value?.focus()
     scrollConversationToBottom()
@@ -572,7 +586,6 @@ const handleRemoveConversation = (conversationId: string) => {
 
   conversationStore.removeConversation(conversationId, businessStore.systemModelName)
   inputTextString.value = ''
-  pendingAttachments.value = []
   nextTick(() => {
     refInputTextString.value?.focus()
     scrollConversationToBottom()
@@ -584,7 +597,6 @@ const handleRemoveConversation = (conversationId: string) => {
 const handleResetState = () => {
   conversationStore.ensureActiveConversation(businessStore.systemModelName)
   inputTextString.value = ''
-  pendingAttachments.value = []
   outputTextReader.value = null
   pendingLayout.value = null
   stylizingLoading.value = false
@@ -744,7 +756,6 @@ const promptTextList = ref([
       ref="refFileInput"
       type="file"
       accept="image/*"
-      multiple
       hidden
       @change="handleUploadFile"
     >
@@ -909,29 +920,6 @@ const promptTextList = ref([
               />
             </div>
 
-            <div
-              v-if="pendingAttachments.length"
-              class="chat-composer__attachments"
-            >
-              <div
-                v-for="(attachment, attachmentIdx) in pendingAttachments"
-                :key="attachmentIdx"
-                class="chat-composer__attachment"
-              >
-                <n-image
-                  :src="attachment.dataUrl"
-                  width="48"
-                  height="48"
-                  object-fit="cover"
-                  class="rounded-10"
-                />
-                <span
-                  class="chat-composer__attachment-remove"
-                  @click="handleRemoveAttachment(attachmentIdx)"
-                >×</span>
-              </div>
-            </div>
-
             <div class="chat-composer__input-wrapper">
               <n-popover
                 v-model:show="composerActionVisible"
@@ -948,12 +936,12 @@ const promptTextList = ref([
                   <button
                     type="button"
                     class="chat-plus-button"
-                    :title="excelQuickImportLoading ? '正在解析 Excel...' : '添加内容'"
-                    :aria-label="excelQuickImportLoading ? '正在解析 Excel...' : '添加内容'"
-                    :disabled="excelQuickImportLoading"
+                    :title="excelQuickImportLoading ? '正在解析 Excel...' : imageQuickImportLoading ? '正在识别订单图片...' : '添加内容'"
+                    :aria-label="excelQuickImportLoading ? '正在解析 Excel...' : imageQuickImportLoading ? '正在识别订单图片...' : '添加内容'"
+                    :disabled="excelQuickImportLoading || imageQuickImportLoading"
                   >
                     <div
-                      v-if="excelQuickImportLoading"
+                      v-if="excelQuickImportLoading || imageQuickImportLoading"
                       class="chat-plus-button__loading"
                     ></div>
                     <div v-else>+</div>
@@ -963,7 +951,7 @@ const promptTextList = ref([
                   <button
                     type="button"
                     class="chat-composer-action-panel__item"
-                    :disabled="excelQuickImportLoading"
+                    :disabled="excelQuickImportLoading || imageQuickImportLoading"
                     @click="handleOpenExcelQuickImport"
                   >
                     <span class="chat-composer-action-panel__icon chat-composer-action-panel__icon--import">
@@ -980,7 +968,7 @@ const promptTextList = ref([
                   <button
                     type="button"
                     class="chat-composer-action-panel__item"
-                    :disabled="excelQuickImportLoading"
+                    :disabled="excelQuickImportLoading || imageQuickImportLoading"
                     @click="handleDownloadExcelTemplate"
                   >
                     <span class="chat-composer-action-panel__icon chat-composer-action-panel__icon--template">
@@ -994,10 +982,10 @@ const promptTextList = ref([
                     </span>
                     <span>下载 Excel 模板</span>
                   </button>
-                  <!-- <button
+                  <button
                     type="button"
                     class="chat-composer-action-panel__item"
-                    :disabled="excelQuickImportLoading"
+                    :disabled="excelQuickImportLoading || imageQuickImportLoading"
                     @click="handleOpenImageUpload"
                   >
                     <span class="chat-composer-action-panel__icon chat-composer-action-panel__icon--image">
@@ -1010,7 +998,7 @@ const promptTextList = ref([
                       </svg>
                     </span>
                     <span>上传订单图片</span>
-                  </button> -->
+                  </button>
                 </div>
               </n-popover>
               <n-input

@@ -53,6 +53,26 @@ export type OrderImportExcelPreview = {
   }
 }
 
+export type OrderImportImageOcrLine = {
+  text: string
+  score: number
+  box: number[][]
+}
+
+export type OrderImportImageParseResult = {
+  rows: OrderImportRow[]
+  invalidRows: Array<OrderImportRow & {
+    rowIndex: number
+    validationMessages: string[]
+  }>
+  rawText: string
+  normalizedText: string
+  avgScore: number
+  lines: OrderImportImageOcrLine[]
+  missingFields: string[]
+  warnings: string[]
+}
+
 const createOrderImportRequest = async (path: string, body: OrderImportParams) => {
   const response = await fetch(`${ location.origin }/local-ai${ path }`, {
     method: 'POST',
@@ -84,6 +104,14 @@ export const uploadOrderImportExcelPreview = (body: {
   mergeDuplicates?: boolean
 }) => {
   return createOrderImportRequest('/api/order-import/upload-preview', body)
+}
+
+export const uploadOrderImportImage = (body: {
+  fileName: string
+  fileContent: string
+  mimeType?: string
+}) => {
+  return createOrderImportRequest('/api/order-import/upload-image', body)
 }
 
 export const downloadOrderImportTemplate = async () => {

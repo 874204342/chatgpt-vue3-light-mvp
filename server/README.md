@@ -78,6 +78,28 @@ LOCAL_AI_SERVER_PORT=3001
 
 Excel 导入链路默认会先做字段识别、规格解析、数量校验、异常行提示与重复规格合并，确认有效数据后再进入前端现有的排版生成流程。当前已兼容模板中的 `自编号`、`流程卡号`、`架号`、`加工要求`、`备注`、`特殊工艺` 与业务文本型 `磨边等级`。
 
+当前版本已新增订单图片 OCR 导入链路：
+
+- `POST /api/order-import/upload-image`：上传单张订单图片的 base64 内容，先调用本地 OCR 服务识别文字，再交给文本模型解析成结构化订单
+- `server\ocr_service\app.py`：本地 OCR 微服务脚本，默认监听 `http://127.0.0.1:18081`
+
+启动本地 OCR 服务前，请先在 `server\ocr_service` 目录安装依赖：
+
+```powershell
+py -3.10 -m venv ".venv-ocr"
+".\.venv-ocr\Scripts\Activate.ps1"
+python -m pip install --upgrade pip
+pip install -r ".\server\ocr_service\requirements.txt"
+uvicorn app:app --host 127.0.0.1 --port 18081 --app-dir ".\server\ocr_service"
+```
+
+如果 OCR 服务地址和端口有调整，可在仓库根目录的环境变量中覆盖：
+
+```env
+LOCAL_OCR_BASE_URL=http://127.0.0.1:18081
+LOCAL_OCR_TIMEOUT=120000
+```
+
 首次拉起前，请确认执行过：
 
 ```powershell

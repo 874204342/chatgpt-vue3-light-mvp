@@ -27,6 +27,8 @@ const glmApiKey = process.env.GLM_API_KEY || process.env.VITE_GLM_KEY || ''
 const glmBaseUrl = process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas'
 const saasBaseUrl = process.env.SAAS_API_BASE_URL || ''
 const port = Number(process.env.LOCAL_AI_SERVER_PORT || 3001)
+const localOcrBaseUrl = process.env.LOCAL_OCR_BASE_URL || 'http://127.0.0.1:18081'
+const localOcrTimeout = Number(process.env.LOCAL_OCR_TIMEOUT || 120000)
 
 if (!deepseekApiKey) {
   console.warn('[server] Missing DEEPSEEK_API_KEY or VITE_DEEPSEEK_KEY in root .env files.')
@@ -45,5 +47,7 @@ export const serverConfig = {
   glmApiKey,
   glmBaseUrl,
   saasBaseUrl,
-  port
+  port,
+  localOcrBaseUrl,
+  localOcrTimeout
 }

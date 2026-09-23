@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import * as XLSX from 'xlsx'
 import { serverConfig } from '../config.js'
+import { parseOrderImageToRows } from '../services/order-image.js'
 
 type OrderImportBody = {
   pageParam?: {
@@ -30,6 +31,12 @@ type ExcelPreviewBody = {
   fileName?: string
   fileContent?: string
   mergeDuplicates?: boolean
+}
+
+type OrderImageBody = {
+  fileName?: string
+  fileContent?: string
+  mimeType?: string
 }
 
 type OrderImportRecord = {
@@ -631,6 +638,33 @@ export const registerOrderImportRoutes = async (app: FastifyInstance) => {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '解析 Excel 文件失败'
+      return handleRouteError(reply, errorMessage)
+    }
+  })
+
+  app.post<{ Body: OrderImageBody; }>('/api/order-import/upload-image', async (request, reply) => {
+    try {
+      const result = await parseOrderImageToRows(request.body || {})
+      const validRowsCount = result.rows.length
+      const invalidRowsCount = result.invalidRows.length
+      const message = validRowsCount
+        ? [
+            `图片识别完成，已识别 ${ validRowsCount } 条有效订单`,
+            invalidRowsCount ? `另有 ${ invalidRowsCount } 条字段不完整未导入` : ''
+          ].filter(Boolean).join('，')
+        : '当前图片内容解析不完整，请重新上传或改用 Excel 导入'
+
+      return {
+        code: 200,
+        message,
+        data: result
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '订单图片识别失败'
+      app.log.error({
+        err: error,
+        fileName: request.body?.fileName
+      }, 'Order image import failed')
       return handleRouteError(reply, errorMessage)
     }
   })

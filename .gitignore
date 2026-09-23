@@ -27,6 +27,15 @@ yarn-error.log*
 # IDE
 .idea
 
+# python
+.venv-ocr/
+**/__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.so
+server/ocr_service/.paddlex-cache/
+
 .env*
 !.env.template
 .env.local*
