@@ -1,11 +1,13 @@
 <script lang="ts" setup>
 interface Props {
   active?: boolean
+  disabled?: boolean
 }
-withDefaults(
+const props = withDefaults(
   defineProps<Props>(),
   {
-    active: false
+    active: false,
+    disabled: false
   }
 )
 
@@ -15,6 +17,21 @@ const emit = defineEmits([
   'edit',
   'remove'
 ])
+
+const handleClick = () => {
+  if (props.disabled) return
+  emit('click')
+}
+
+const handleEdit = () => {
+  if (props.disabled) return
+  emit('edit')
+}
+
+const handleRemove = () => {
+  if (props.disabled) return
+  emit('remove')
+}
 </script>
 
 <template>
@@ -23,14 +40,14 @@ const emit = defineEmits([
     py="12px"
     px="14px"
     rounded-14px
-    cursor-pointer
     class="sidebar-item group font-bold transition-all-260 b b-solid"
     :class="[
+      disabled ? 'sidebar-item--disabled cursor-not-allowed' : 'cursor-pointer',
       active
         ? 'sidebar-item--active c-#26415f b-transparent'
         : 'sidebar-item--idle c-#303133 b-transparent'
     ]"
-    @click="emit('click')"
+    @click="handleClick"
   >
     <div
       flex="1"
@@ -50,12 +67,13 @@ const emit = defineEmits([
           : 'group-hover:opacity-100 c-#7a879d hover:c-#35558f'
       ]"
       flex="~ justify-center items-center"
-      @click.stop="emit('edit')"
+      @click.stop="handleEdit"
     >
       <div class="i-mingcute:pencil-2-line"></div>
     </div>
     <n-popconfirm
-      @positive-click="emit('remove')"
+      :disabled="disabled"
+      @positive-click="handleRemove"
     >
       <template #trigger>
         <div
@@ -83,7 +101,7 @@ const emit = defineEmits([
   background: rgb(255 255 255 / 42%);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 58%);
 
-  &:hover {
+  &:not(.sidebar-item--disabled):hover {
     border-color: rgb(151 170 222 / 18%);
     background: rgb(255 255 255 / 72%);
     box-shadow:
@@ -98,6 +116,11 @@ const emit = defineEmits([
   box-shadow:
     0 12px 26px rgb(67 88 143 / 8%),
     inset 0 1px 0 rgb(255 255 255 / 86%);
+}
+
+.sidebar-item--disabled {
+  opacity: 0.66;
+  transform: none !important;
 }
 
 .sidebar-item__action {

@@ -72,6 +72,10 @@ const activeConversation = computed(() => conversationStore.activeConversation)
 const conversationList = computed(() => activeConversation.value?.messages || [])
 const conversationPreviewList = computed(() => conversationStore.conversations)
 const activeConversationTitle = computed(() => activeConversation.value?.title || '新对话')
+// 统一收口当前页面的处理中状态，避免 OCR/Excel/回答生成期间触发其它交互导致状态串扰。
+const isWorkflowBusy = computed(() => {
+  return stylizingLoading.value || excelQuickImportLoading.value || imageQuickImportLoading.value
+})
 const isPristineConversation = computed(() => {
   return Boolean(
     activeConversation.value
@@ -243,28 +247,24 @@ const handleCreateStylized = async () => {
 }
 
 const openOrderImportDialog = () => {
-  if (stylizingLoading.value) {
-    message.warning('请等待当前对话完成后再导入订单')
+  if (isWorkflowBusy.value) {
+    message.warning(getWorkflowBusyMessage())
     return
   }
   orderImportDialogVisible.value = true
 }
 
 const openInventoryDialog = () => {
-  if (stylizingLoading.value) {
-    message.warning('请等待当前对话完成后再查看库存')
+  if (isWorkflowBusy.value) {
+    message.warning(getWorkflowBusyMessage())
     return
   }
   inventoryDialogVisible.value = true
 }
 
 const handleOpenImageUpload = () => {
-  if (stylizingLoading.value) {
-    message.warning('请等待当前对话完成后再上传文件')
-    return
-  }
-  if (imageQuickImportLoading.value) {
-    message.warning('订单图片识别中，请稍候')
+  if (isWorkflowBusy.value) {
+    message.warning(getWorkflowBusyMessage())
     return
   }
   composerActionVisible.value = false
@@ -272,8 +272,8 @@ const handleOpenImageUpload = () => {
 }
 
 const handleOpenExcelQuickImport = () => {
-  if (stylizingLoading.value) {
-    message.warning('请等待当前对话完成后再导入 Excel')
+  if (isWorkflowBusy.value) {
+    message.warning(getWorkflowBusyMessage())
     return
   }
   composerActionVisible.value = false
@@ -281,6 +281,10 @@ const handleOpenExcelQuickImport = () => {
 }
 
 const handleDownloadExcelTemplate = async () => {
+  if (isWorkflowBusy.value) {
+    message.warning(getWorkflowBusyMessage())
+    return
+  }
   composerActionVisible.value = false
   try {
     await downloadOrderImportTemplate()
@@ -377,6 +381,66 @@ const workspaceHighlightList = [
   '结构化输出'
 ]
 
+const imageQuickImportStageList = [
+  {
+    title: '图像读取',
+    description: '正在接收订单图片并校验图像质量，准备进入识别流程。',
+    tip: '已接入本地 OCR 识别引擎'
+  },
+  {
+    title: '文字识别',
+    description: '正在提取图片中的规格、尺寸与数量信息，请稍候片刻。',
+    tip: '正在分析订单文本与表格区域'
+  },
+  {
+    title: '结构整理',
+    description: '正在整理为可分析的订单数据，完成后将自动生成排版文案。',
+    tip: '识别结果将直接回填到输入区'
+  }
+] as const
+
+const imageQuickImportStageIndex = ref(0)
+let imageQuickImportStageTimer: number | null = null
+
+const imageQuickImportActiveStage = computed(() => {
+  return imageQuickImportStageList[imageQuickImportStageIndex.value] || imageQuickImportStageList[0]
+})
+
+const startImageQuickImportStageLoop = () => {
+  imageQuickImportStageIndex.value = 0
+  if (typeof window === 'undefined') return
+
+  if (imageQuickImportStageTimer) {
+    window.clearInterval(imageQuickImportStageTimer)
+  }
+
+  // OCR 接口当前没有细粒度进度回传，这里用阶段轮播强化过程感。
+  imageQuickImportStageTimer = window.setInterval(() => {
+    imageQuickImportStageIndex.value = (imageQuickImportStageIndex.value + 1) % imageQuickImportStageList.length
+  }, 1800)
+}
+
+const stopImageQuickImportStageLoop = () => {
+  imageQuickImportStageIndex.value = 0
+  if (typeof window === 'undefined' || !imageQuickImportStageTimer) return
+
+  window.clearInterval(imageQuickImportStageTimer)
+  imageQuickImportStageTimer = null
+}
+
+const getWorkflowBusyMessage = () => {
+  if (imageQuickImportLoading.value) {
+    return '订单图片识别中，请稍候'
+  }
+  if (excelQuickImportLoading.value) {
+    return 'Excel 解析中，请稍候'
+  }
+  if (stylizingLoading.value) {
+    return '当前内容生成中，请稍候'
+  }
+  return '当前流程处理中，请稍候'
+}
+
 const handleInputEnter = (event: KeyboardEvent) => {
   if (event.shiftKey || event.ctrlKey) return
 
@@ -420,6 +484,7 @@ const handleUploadFile = (event: Event) => {
 
   void (async () => {
     imageQuickImportLoading.value = true
+    startImageQuickImportStageLoop()
     try {
       const fileContent = await fileToBase64(file)
       const response = await uploadOrderImportImage({
@@ -448,6 +513,7 @@ const handleUploadFile = (event: Event) => {
       const errorMessage = error instanceof Error ? error.message : '订单图片识别失败，请重新上传'
       message.warning(errorMessage)
     } finally {
+      stopImageQuickImportStageLoop()
       imageQuickImportLoading.value = false
       input.value = ''
     }
@@ -515,9 +581,9 @@ const formatConversationTime = (value: string) => {
 }
 
 const ensureConversationActionAllowed = () => {
-  if (!stylizingLoading.value) return true
+  if (!isWorkflowBusy.value) return true
 
-  message.warning('请等待当前对话完成后再操作会话')
+  message.warning(getWorkflowBusyMessage())
   return false
 }
 
@@ -618,6 +684,10 @@ onMounted(() => {
   consumeRoutePrompt()
 })
 
+onBeforeUnmount(() => {
+  stopImageQuickImportStageLoop()
+})
+
 watch(
   () => route.query,
   () => {
@@ -639,10 +709,18 @@ const PromptTag = defineComponent({
     text: {
       type: String,
       default: ''
+    },
+    disabled: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {
     const handleClick = () => {
+      if (props.disabled) {
+        message.warning(getWorkflowBusyMessage())
+        return
+      }
       inputTextString.value = props.text
       nextTick(() => {
         refInputTextString.value?.focus()
@@ -656,11 +734,12 @@ const PromptTag = defineComponent({
     return (
       <div
         b="~ solid #d7def5"
-        hover="shadow-[--shadow] b-#8aa4ff bg-#ffffff"
         class={[
           'px-12 py-7 rounded-999 text-12 shrink-0',
-          'max-w-240 transition-all-300 select-none cursor-pointer',
-          'c-#31456a bg-#f7f9ff backdrop-blur-sm'
+          'max-w-240 transition-all-300 select-none',
+          this.disabled
+            ? 'cursor-not-allowed c-#8d99ad bg-#f4f6fb opacity-70'
+            : 'cursor-pointer c-#31456a bg-#f7f9ff backdrop-blur-sm hover:shadow-[--shadow] hover:b-#8aa4ff hover:bg-#ffffff'
         ]}
         style={{
           '--shadow': '0 10px 24px rgba(88, 114, 255, 0.14)'
@@ -706,6 +785,7 @@ const promptTextList = ref([
           <n-button
             type="primary"
             class="chat-sidebar__create-button"
+            :disabled="isWorkflowBusy"
             @click="handleCreateConversation"
           >
             新对话
@@ -714,6 +794,7 @@ const promptTextList = ref([
             secondary
             type="primary"
             class="chat-sidebar__import-button"
+            :disabled="isWorkflowBusy"
             @click="openOrderImportDialog"
           >
             导入订单
@@ -722,6 +803,7 @@ const promptTextList = ref([
             secondary
             type="primary"
             class="chat-sidebar__inventory-button"
+            :disabled="isWorkflowBusy"
             @click="openInventoryDialog"
           >
             仓库库存
@@ -736,6 +818,7 @@ const promptTextList = ref([
             v-for="conversationItem in conversationPreviewList"
             :key="conversationItem.id"
             :active="conversationItem.id === activeConversation?.id"
+            :disabled="isWorkflowBusy"
             @click="handleSwitchConversation(conversationItem.id)"
             @edit="handleRenameConversation(conversationItem.id)"
             @remove="handleRemoveConversation(conversationItem.id)"
@@ -912,17 +995,64 @@ const promptTextList = ref([
 
         <div class="chat-workspace__footer">
           <div class="chat-composer">
+            <div
+              v-if="imageQuickImportLoading"
+              class="ocr-loading-hub"
+            >
+              <div class="ocr-loading-hub__visual">
+                <div class="ocr-loading-hub__ring ocr-loading-hub__ring--outer"></div>
+                <div class="ocr-loading-hub__ring ocr-loading-hub__ring--inner"></div>
+                <div class="ocr-loading-hub__core"></div>
+                <div class="ocr-loading-hub__beam"></div>
+              </div>
+              <div class="ocr-loading-hub__content">
+                <div class="ocr-loading-hub__eyebrow">
+                  OCR Processing
+                </div>
+                <div class="ocr-loading-hub__title">
+                  订单图片识别中
+                </div>
+                <div class="ocr-loading-hub__description">
+                  {{ imageQuickImportActiveStage.description }}
+                </div>
+                <div class="ocr-loading-hub__meta">
+                  <span class="ocr-loading-hub__meta-chip">
+                    {{ imageQuickImportActiveStage.tip }}
+                  </span>
+                  <span class="ocr-loading-hub__meta-text">
+                    识别完成后将自动生成可用于排版分析的订单内容
+                  </span>
+                </div>
+                <div class="ocr-loading-hub__steps">
+                  <div
+                    v-for="(item, idx) in imageQuickImportStageList"
+                    :key="item.title"
+                    class="ocr-loading-hub__step"
+                    :class="{
+                      'is-active': idx === imageQuickImportStageIndex,
+                      'is-completed': idx < imageQuickImportStageIndex
+                    }"
+                  >
+                    <span class="ocr-loading-hub__step-dot"></span>
+                    <span class="ocr-loading-hub__step-label">{{ item.title }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="chat-composer__prompt-list">
               <PromptTag
                 v-for="(textItem, idx) in promptTextList"
                 :key="idx"
                 :text="textItem"
+                :disabled="isWorkflowBusy"
               />
             </div>
 
             <div class="chat-composer__input-wrapper">
               <n-popover
                 v-model:show="composerActionVisible"
+                :disabled="isWorkflowBusy"
                 trigger="click"
                 placement="top-start"
                 :show-arrow="false"
@@ -938,7 +1068,7 @@ const promptTextList = ref([
                     class="chat-plus-button"
                     :title="excelQuickImportLoading ? '正在解析 Excel...' : imageQuickImportLoading ? '正在识别订单图片...' : '添加内容'"
                     :aria-label="excelQuickImportLoading ? '正在解析 Excel...' : imageQuickImportLoading ? '正在识别订单图片...' : '添加内容'"
-                    :disabled="excelQuickImportLoading || imageQuickImportLoading"
+                    :disabled="isWorkflowBusy"
                   >
                     <div
                       v-if="excelQuickImportLoading || imageQuickImportLoading"
@@ -951,7 +1081,7 @@ const promptTextList = ref([
                   <button
                     type="button"
                     class="chat-composer-action-panel__item"
-                    :disabled="excelQuickImportLoading || imageQuickImportLoading"
+                    :disabled="isWorkflowBusy"
                     @click="handleOpenExcelQuickImport"
                   >
                     <span class="chat-composer-action-panel__icon chat-composer-action-panel__icon--import">
@@ -968,7 +1098,7 @@ const promptTextList = ref([
                   <button
                     type="button"
                     class="chat-composer-action-panel__item"
-                    :disabled="excelQuickImportLoading || imageQuickImportLoading"
+                    :disabled="isWorkflowBusy"
                     @click="handleDownloadExcelTemplate"
                   >
                     <span class="chat-composer-action-panel__icon chat-composer-action-panel__icon--template">
@@ -985,7 +1115,7 @@ const promptTextList = ref([
                   <button
                     type="button"
                     class="chat-composer-action-panel__item"
-                    :disabled="excelQuickImportLoading || imageQuickImportLoading"
+                    :disabled="isWorkflowBusy"
                     @click="handleOpenImageUpload"
                   >
                     <span class="chat-composer-action-panel__icon chat-composer-action-panel__icon--image">
@@ -1011,6 +1141,7 @@ const promptTextList = ref([
                   maxRows: 10
                 }"
                 class="chat-textarea textarea-resize-none text-15"
+                :disabled="isWorkflowBusy"
                 :style="{
                   '--n-border-radius': '24px',
                   '--n-padding-left': '76px',
@@ -1030,6 +1161,7 @@ const promptTextList = ref([
                 ]"
                 :title="stylizingLoading ? '中断当前回答' : '发送问题'"
                 :aria-label="stylizingLoading ? '中断当前回答' : '发送问题'"
+                :disabled="isWorkflowBusy && !stylizingLoading"
                 @click.stop="handleCreateStylized()"
               >
                 <div
@@ -1423,6 +1555,195 @@ const promptTextList = ref([
   gap: 10px;
 }
 
+.ocr-loading-hub {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  overflow: hidden;
+  padding: 16px 18px;
+  border: 1px solid rgb(145 171 236 / 22%);
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 88%), rgb(241 247 255 / 86%)),
+    radial-gradient(circle at top left, rgb(255 255 255 / 70%), transparent 42%);
+  box-shadow:
+    0 18px 38px rgb(59 86 156 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 88%);
+  backdrop-filter: blur(18px);
+}
+
+.ocr-loading-hub::before {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(110deg, rgb(106 135 246 / 0%) 0%, rgb(106 135 246 / 8%) 38%, rgb(88 203 255 / 12%) 52%, rgb(88 203 255 / 0%) 72%);
+  pointer-events: none;
+  content: '';
+}
+
+.ocr-loading-hub__visual {
+  position: relative;
+  display: flex;
+  flex: 0 0 74px;
+  align-items: center;
+  justify-content: center;
+  width: 74px;
+  height: 74px;
+  border-radius: 24px;
+  background: radial-gradient(circle, rgb(232 241 255 / 86%) 0%, rgb(219 233 255 / 28%) 68%, transparent 100%);
+}
+
+.ocr-loading-hub__ring {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgb(106 136 246 / 18%);
+  border-radius: 50%;
+}
+
+.ocr-loading-hub__ring--outer {
+  animation: ocr-loading-hub-pulse 2.4s ease-in-out infinite;
+}
+
+.ocr-loading-hub__ring--inner {
+  inset: 18px;
+  border-color: rgb(86 194 246 / 24%);
+  animation: ocr-loading-hub-pulse 2.4s ease-in-out infinite reverse;
+}
+
+.ocr-loading-hub__core {
+  position: relative;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f5fbff 0%, #8ec5ff 38%, #5b76ef 100%);
+  box-shadow:
+    0 0 0 8px rgb(116 151 255 / 10%),
+    0 0 24px rgb(94 130 240 / 28%);
+}
+
+.ocr-loading-hub__beam {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgb(101 135 244 / 0%) 0deg, rgb(101 135 244 / 0%) 250deg, rgb(101 135 244 / 46%) 310deg, rgb(101 135 244 / 0%) 360deg);
+  animation: ocr-loading-hub-rotate 1.9s linear infinite;
+}
+
+.ocr-loading-hub__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ocr-loading-hub__eyebrow {
+  color: #7384a2;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ocr-loading-hub__title {
+  color: #1a2942;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.ocr-loading-hub__description {
+  color: #5e708e;
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.ocr-loading-hub__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.ocr-loading-hub__meta-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgb(131 165 243 / 18%);
+  border-radius: 999px;
+  background: rgb(247 250 255 / 76%);
+  color: #4f6cb5;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 88%);
+}
+
+.ocr-loading-hub__meta-text {
+  color: #7b8aa5;
+  font-size: 12px;
+}
+
+.ocr-loading-hub__steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.ocr-loading-hub__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgb(154 174 232 / 16%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 58%);
+  color: #7585a0;
+  transition: all 0.25s ease;
+}
+
+.ocr-loading-hub__step.is-active {
+  border-color: rgb(97 132 240 / 24%);
+  background: linear-gradient(135deg, rgb(245 249 255 / 94%), rgb(233 242 255 / 92%));
+  color: #32518e;
+  box-shadow:
+    0 8px 18px rgb(93 127 230 / 12%),
+    inset 0 1px 0 rgb(255 255 255 / 92%);
+}
+
+.ocr-loading-hub__step.is-completed {
+  border-color: rgb(106 183 214 / 18%);
+  background: rgb(245 251 255 / 78%);
+  color: #4f7891;
+}
+
+.ocr-loading-hub__step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 0 4px rgb(124 156 244 / 10%);
+}
+
+.ocr-loading-hub__step.is-active .ocr-loading-hub__step-dot {
+  background: radial-gradient(circle at 35% 35%, #edf7ff 0%, #7eb6ff 38%, #4d77ef 100%);
+  box-shadow:
+    0 0 0 5px rgb(124 156 244 / 12%),
+    0 0 16px rgb(97 132 240 / 24%);
+}
+
+.ocr-loading-hub__step-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .chat-composer__prompt-list {
   display: flex;
   align-items: center;
@@ -1701,7 +2022,45 @@ const promptTextList = ref([
   }
 }
 
+@keyframes ocr-loading-hub-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ocr-loading-hub-pulse {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
 @media (width <= 960px) {
+  .ocr-loading-hub {
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 15px;
+  }
+
+  .ocr-loading-hub__visual {
+    flex-basis: 62px;
+    width: 62px;
+    height: 62px;
+  }
+
+  .ocr-loading-hub__title {
+    font-size: 16px;
+  }
 
   .chat-empty-state__title {
     font-size: 30px;
