@@ -1,0 +1,26 @@
+[Unit]
+Description=Local OCR Service (PaddleOCR + FastAPI)
+# 依赖网络：首次启动需要联网下载 PaddleOCR 模型
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 以下占位符由 deploy/install-service.sh 替换为实际路径与端口
+User=__RUN_USER__
+Group=__RUN_GROUP__
+WorkingDirectory=__OCR_DIR__
+ExecStart=__VENV_DIR__/bin/uvicorn app:app --app-dir __OCR_DIR__ --host __OCR_HOST__ --port __OCR_PORT__
+Environment=PYTHONUNBUFFERED=1
+SyslogIdentifier=ocr-service
+# 进程异常退出后自动拉起
+Restart=always
+RestartSec=5
+# 首次加载 PaddleOCR 模型较慢，放宽启动超时
+TimeoutStartSec=300
+# 停止时先发 SIGINT，让 uvicorn 走优雅退出
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

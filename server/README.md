@@ -100,6 +100,32 @@ LOCAL_OCR_BASE_URL=http://127.0.0.1:18081
 LOCAL_OCR_TIMEOUT=120000
 ```
 
+### 服务器常驻部署（systemd）
+
+本地调试用上面的 `uvicorn` 前台命令即可；部署到服务器（例如 `/var/www/server/ocr_service`）时，用 `deploy` 目录下的一键脚本注册为 systemd 服务，实现开机自启与进程崩溃自动拉起：
+
+```bash
+sudo bash /var/www/server/ocr_service/deploy/install-service.sh
+```
+
+脚本会自动完成：校验 Python 版本（需 3.10 / 3.11）→ 创建 `.venv-ocr` 虚拟环境 → 安装 `requirements.txt` 依赖 → 渲染并安装 `ocr-service.service` → 启动服务并探活 `/health`。
+
+可用环境变量覆盖默认行为：
+
+```bash
+sudo OCR_PORT=18081 PYTHON_BIN=python3.11 bash /var/www/server/ocr_service/deploy/install-service.sh
+```
+
+常用运维命令：
+
+```bash
+systemctl status ocr-service      # 查看状态
+journalctl -u ocr-service -f      # 查看实时日志
+systemctl restart ocr-service     # 重启
+```
+
+注意：`install-service.sh` 与 `ocr-service.service` 必须是 LF 换行。若在 Windows 上编辑过再上传，先执行 `sed -i 's/\r$//' /var/www/server/ocr_service/deploy/*` 转换。
+
 首次拉起前，请确认执行过：
 
 ```powershell
