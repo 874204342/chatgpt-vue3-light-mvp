@@ -8,8 +8,9 @@
 # 可选环境变量：
 #   OCR_HOST=127.0.0.1     监听地址
 #   OCR_PORT=18081         监听端口
-#   PYTHON_BIN=python3.11  用于创建虚拟解释器的 python
+#   PYTHON_BIN=python3.11  显式指定解释器；不填则自动探测 3.11/3.10/3.12/3.9/3.8
 #   SKIP_DEPS=1            跳过依赖安装（仅重装/更新 systemd 服务时使用）
+#   BOOT_WAIT_SECONDS=600  启动后最长等待秒数，覆盖首次模型下载/初始化慢的场景
 #
 set -euo pipefail
 
@@ -24,15 +25,32 @@ UNIT_TARGET="/etc/systemd/system/${SERVICE_NAME}.service"
 
 OCR_HOST="${OCR_HOST:-127.0.0.1}"
 OCR_PORT="${OCR_PORT:-18081}"
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+# 留空表示自动探测（见 detect_python）
+PYTHON_BIN="${PYTHON_BIN:-}"
 SKIP_DEPS="${SKIP_DEPS:-0}"
+BOOT_WAIT_SECONDS="${BOOT_WAIT_SECONDS:-600}"
+BOOT_WAIT_INTERVAL_SECONDS=2
 
-# 监听 0.0.0.0 / :: 时，探活改用回环地址
+# 监听 0.0.0.0 / :: 时，探活改用同协议的回环地址
 PROBE_HOST="${OCR_HOST}"
-if [[ "${PROBE_HOST}" == "0.0.0.0" || "${PROBE_HOST}" == "::" ]]; then
+if [[ "${PROBE_HOST}" == "0.0.0.0" ]]; then
   PROBE_HOST="127.0.0.1"
 fi
-HEALTH_URL="http://${PROBE_HOST}:${OCR_PORT}/health"
+if [[ "${PROBE_HOST}" == "::" ]]; then
+  PROBE_HOST="::1"
+fi
+
+format_host_for_url() {
+  if [[ "$1" == *:* && "$1" != \[*\] ]]; then
+    printf '[%s]\n' "$1"
+    return 0
+  fi
+  printf '%s\n' "$1"
+}
+
+PROBE_HOST_FOR_URL="$(format_host_for_url "${PROBE_HOST}")"
+HEALTH_URL="http://${PROBE_HOST_FOR_URL}:${OCR_PORT}/health"
+BOOT_WAIT_ATTEMPTS=$(( (BOOT_WAIT_SECONDS + BOOT_WAIT_INTERVAL_SECONDS - 1) / BOOT_WAIT_INTERVAL_SECONDS ))
 
 log() { echo "[${SERVICE_NAME}] $*"; }
 
@@ -46,20 +64,67 @@ fi
 RUN_USER="${SUDO_USER:-$(id -un)}"
 RUN_GROUP="$(id -gn "${RUN_USER}")"
 
-if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
-  log "未找到 ${PYTHON_BIN}，请先安装 Python 3.10 / 3.11" >&2
+# paddlepaddle 2.6.2 只发布了 cp38 ~ cp312 的 wheel，3.13+ 需要源码编译，这里不做支持
+SUPPORTED_PY_VERSIONS=("3.8" "3.9" "3.10" "3.11" "3.12")
+# 自动探测时的优先级：与本地已验证通过的 3.11 环境保持一致
+PY_CANDIDATES=("python3.11" "python3.10" "python3.12" "python3.9" "python3.8" "python3" "python")
+
+py_version_of() {
+  "$1" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || true
+}
+
+is_supported_version() {
+  local target
+  for target in "${SUPPORTED_PY_VERSIONS[@]}"; do
+    [[ "$1" == "${target}" ]] && return 0
+  done
+  return 1
+}
+
+# 输出可用的解释器命令；显式指定 PYTHON_BIN 时只校验它自己
+detect_python() {
+  local candidates=("${PY_CANDIDATES[@]}")
+  local candidate version
+  if [[ -n "${PYTHON_BIN}" ]]; then
+    candidates=("${PYTHON_BIN}")
+  fi
+
+  for candidate in "${candidates[@]}"; do
+    command -v "${candidate}" >/dev/null 2>&1 || continue
+    version="$(py_version_of "${candidate}")"
+    if is_supported_version "${version}"; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+DETECTED_PYTHON="$(detect_python || true)"
+if [[ -z "${DETECTED_PYTHON}" ]]; then
+  log "未找到可用的 Python 解释器（paddlepaddle==2.6.2 仅提供 3.8 ~ 3.12 的预编译包）" >&2
+  log "服务器上检测到的解释器：" >&2
+  for candidate in "${PY_CANDIDATES[@]}"; do
+    if command -v "${candidate}" >/dev/null 2>&1; then
+      log "  ${candidate} -> Python $(py_version_of "${candidate}")" >&2
+    fi
+  done
+  log "处理方式：安装 3.10 / 3.11（Ubuntu: sudo apt install python3.11 python3.11-venv）后重试，" >&2
+  log "或指定已有版本：PYTHON_BIN=python3.10 sudo -E bash $0" >&2
   exit 1
 fi
 
-# paddlepaddle 2.6.2 只提供 cp310 / cp311 轮子，其余版本会编译失败
-PY_VERSION="$("${PYTHON_BIN}" -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
-if [[ "${PY_VERSION}" != "3.10" && "${PY_VERSION}" != "3.11" ]]; then
-  log "当前 Python 版本为 ${PY_VERSION}，requirements 中的 paddlepaddle==2.6.2 仅支持 3.10 / 3.11" >&2
-  log "可通过 PYTHON_BIN=python3.11 sudo -E bash $0 指定解释器" >&2
-  exit 1
-fi
+PYTHON_BIN="${DETECTED_PYTHON}"
+PY_VERSION="$(py_version_of "${PYTHON_BIN}")"
+log "使用解释器：${PYTHON_BIN}（Python ${PY_VERSION}）"
 
 # ---------- 1. 准备虚拟环境与依赖 ----------
+# 目录存在但缺少 bin/python，说明是 Windows 上创建后整体拷贝过来的，不能直接用
+if [[ -d "${VENV_DIR}" && ! -x "${VENV_DIR}/bin/python" ]]; then
+  log "${VENV_DIR} 不是可用的 Linux 虚拟环境，请先删除后重试：rm -rf ${VENV_DIR}" >&2
+  exit 1
+fi
+
 if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   log "创建虚拟环境：${VENV_DIR}"
   "${PYTHON_BIN}" -m venv "${VENV_DIR}"
@@ -100,9 +165,9 @@ systemctl enable "${SERVICE_NAME}" >/dev/null
 systemctl restart "${SERVICE_NAME}"
 
 # ---------- 3. 健康检查 ----------
-log "等待服务就绪（首次需加载 / 下载 OCR 模型）"
+log "等待服务就绪（最长 ${BOOT_WAIT_SECONDS} 秒，首次可能需要下载/初始化 OCR 模型）"
 READY=0
-for _ in $(seq 1 90); do
+for _ in $(seq 1 "${BOOT_WAIT_ATTEMPTS}"); do
   # 用 venv 内的 Python 做探活，避免依赖服务器上是否安装 curl
   if "${VENV_DIR}/bin/python" -c "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('${HEALTH_URL}', timeout=3).status == 200 else 1)" >/dev/null 2>&1; then
     READY=1
@@ -113,7 +178,7 @@ for _ in $(seq 1 90); do
     journalctl -u "${SERVICE_NAME}" -n 50 --no-pager >&2 || true
     exit 1
   fi
-  sleep 2
+  sleep "${BOOT_WAIT_INTERVAL_SECONDS}"
 done
 
 if [[ "${READY}" != "1" ]]; then

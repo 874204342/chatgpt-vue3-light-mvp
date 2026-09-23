@@ -108,12 +108,27 @@ LOCAL_OCR_TIMEOUT=120000
 sudo bash /var/www/server/ocr_service/deploy/install-service.sh
 ```
 
-脚本会自动完成：校验 Python 版本（需 3.10 / 3.11）→ 创建 `.venv-ocr` 虚拟环境 → 安装 `requirements.txt` 依赖 → 渲染并安装 `ocr-service.service` → 启动服务并探活 `/health`。
+脚本会自动完成：自动探测可用的 Python 解释器（`paddlepaddle==2.6.2` 只提供 3.8 ~ 3.12 的预编译包，按 3.11 → 3.10 → 3.12 → 3.9 → 3.8 → 系统 `python3` 的顺序挑选）→ 创建 `.venv-ocr` 虚拟环境 → 安装 `requirements.txt` 依赖 → 渲染并安装 `ocr-service.service` → 启动服务并探活 `/health`。
 
 可用环境变量覆盖默认行为：
 
 ```bash
-sudo OCR_PORT=18081 PYTHON_BIN=python3.11 bash /var/www/server/ocr_service/deploy/install-service.sh
+# 指定端口、解释器与冷启动等待时间（PYTHON_BIN 留空即自动探测）
+sudo OCR_PORT=18081 PYTHON_BIN=python3.10 BOOT_WAIT_SECONDS=600 bash /var/www/server/ocr_service/deploy/install-service.sh
+```
+
+说明：
+
+- `BOOT_WAIT_SECONDS` 默认是 `600`，用于覆盖首次模型下载或 OCR 引擎初始化较慢的场景
+- `OCR_HOST=::` 或其他 IPv6 地址时，脚本会自动按 IPv6 URL 规则探活，无需手动改健康检查地址
+
+若服务器上所有解释器都不在 3.8 ~ 3.12 范围内，脚本会列出检测到的版本并退出。此时先装一个可用版本再重试：
+
+```bash
+# Ubuntu / Debian
+sudo apt install python3.11 python3.11-venv
+# CentOS / RHEL / Rocky
+sudo yum install python3.11
 ```
 
 常用运维命令：
